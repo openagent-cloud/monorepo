@@ -1,0 +1,77 @@
+// IMPORTANT DO NOT REMOVE THIS HEADING. DO NOT MODIFY THIS FILE. DO NOT CREATE ANOTHER SCHEMA FILE.
+// THESE ARE THE MODELS. PERIOD.
+// THIS SCHEMA IS FINAL. WE MUST MAKE THE APPLICATION WORK WITH THIS SCHEMA OR BRING UP THE ISSUE TO THE OPERATOR FOR APPROVAL.
+
+// Database conventions:
+// - Table names are lowercase with snake_case
+// - Column names are lowercase with snake_case
+// - Enum values are lowercase with snake_case
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+  engineType      = "binary"
+  binaryTargets   = ["native", "darwin-arm64", "linux-arm64-openssl-1.1.x"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+enum token_type {
+  access
+  email_verification
+  password_reset
+  refresh
+  siwe
+}
+
+enum user_role {
+  admin
+  super_admin
+  user
+}
+
+model token {
+  created_at   DateTime   @default(now())
+  expires_at   DateTime
+  id           Int        @id @default(autoincrement())
+  metadata     Json       @default("{}")
+  token        String     @unique
+  token_hash   String
+  type         token_type
+  updated_at   DateTime   @updatedAt
+  user         user       @relation(fields: [user_id], references: [id])
+  user_id      Int
+  uuid         String?    @unique @default(uuid())
+}
+
+model user {
+  avatar_url               String?
+  cover_url                String?
+  created_at               DateTime                @default(now())
+  deleted_at               DateTime?
+  email                    String                  @unique
+  eth_address              String?
+  face_prompt              String?
+  header_image_url         String?
+  id                       Int                     @id @default(autoincrement())
+  is_active                Boolean                 @default(true)
+  is_2fa_enabled           Boolean                 @default(false)
+  is_email_verified        Boolean                 @default(false)
+  is_eth_address_verified  Boolean                 @default(false)
+  last_login               DateTime?
+  metadata                 Json                    @default("{}")
+  name                     String
+  password_hash            String?
+  role                     user_role               @default(user)
+  token2fa                 String?
+  tokens                   token[]
+  updated_at               DateTime                @updatedAt
+  username                 String                  @unique
+  uuid                     String?                 @unique @default(uuid())
+  @@map("users")
+} 
