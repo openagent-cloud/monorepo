@@ -1,3 +1,72 @@
+# Environment variables
 .env
+.env.*
+!.env.example
+
+# Dependencies
 node_modules
+.pnp
+.pnp.js
+
+# Turborepo
+.turbo
+
+# Prisma generated
+**/generated/
+
+# Build outputs
+dist
+build
+out
+.next
+.nuxt
+.output
+
+# Testing
+coverage
+.nyc_output
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.kate-swp
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.vim/
+
+# Misc
+.cache
+temp
+tmp
+.tmp
+.temp
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.stackdump
+
+# Previous file for retention
 README-hide.md
