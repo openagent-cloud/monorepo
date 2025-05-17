@@ -23,4 +23,4 @@ COPY packages/client ./packages/client
 EXPOSE 5850
 
 # Command is specified in docker-compose.yaml
-CMD ["npm", "run", "dev", "--workspace=client", "--", "--host", "0.0.0.0"]
+CMD ["sh", "-c", "cd packages/client && npm run dev -- --host 0.0.0.0"]
