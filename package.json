@@ -10,10 +10,10 @@
     "lint": "turbo run lint",
     "format": "turbo run format",
     "reset": "turbo run clean && npm install",
-    "db:generate": "turbo run db:generate --filter=shared",
-    "db:push": "turbo run db:push --filter=shared",
-    "db:migrate": "turbo run db:migrate --filter=shared",
-    "db:seed": "turbo run db:seed --filter=shared"
+    "db:generate": "turbo run db:generate --filter=electric-stack-template-shared",
+    "db:push": "turbo run db:push --filter=electric-stack-template-shared",
+    "db:migrate": "turbo run db:migrate --filter=electric-stack-template-shared",
+    "db:seed": "turbo run db:seed --filter=electric-stack-template-shared"
   },
   "keywords": [
     "electric",

@@ -8,17 +8,17 @@ install:
 
 # Prisma (using the shared package)
 migrate:
-	npx turbo run db:migrate --filter=shared
+	npx turbo run db:migrate --filter=electric-stack-template-shared
 
 generate:
-	npx turbo run db:generate --filter=shared
+	npx turbo run db:generate --filter=electric-stack-template-shared
 
 studio:
 	cd packages/shared && npx prisma studio
 
 # Seed database
 seed:
-	npx turbo run db:seed --filter=shared
+	npx turbo run db:seed --filter=electric-stack-template-shared
 
 # Dev server (full stack with env setup)
 dev:
