@@ -1,0 +1,36 @@
+{
+  "name": "electric-stack-template",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ElectricStack: A local-first stack template with ElectricSQL, NestJS, React, and Prisma",
+  "packageManager": "npm@10.2.3",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "format": "turbo run format",
+    "reset": "turbo run clean && npm install",
+    "db:generate": "turbo run db:generate --filter=shared",
+    "db:push": "turbo run db:push --filter=shared",
+    "db:migrate": "turbo run db:migrate --filter=shared",
+    "db:seed": "turbo run db:seed --filter=shared"
+  },
+  "keywords": [
+    "electric",
+    "localsql",
+    "nestjs",
+    "react",
+    "prisma",
+    "monorepo"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  },
+  "workspaces": [
+    "packages/client",
+    "packages/server",
+    "packages/shared"
+  ]
+}

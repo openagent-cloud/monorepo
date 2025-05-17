@@ -1,0 +1,52 @@
+{
+  "tasks": {
+    "dev": {
+      "dependsOn": [
+        "^dev"
+      ],
+      "cache": false
+    },
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**",
+        "build/**"
+      ]
+    },
+    "lint": {
+      "outputs": []
+    },
+    "format": {
+      "outputs": []
+    },
+    "clean": {
+      "cache": false
+    },
+    "db:generate": {
+      "cache": false,
+      "outputs": [
+        "generated/**"
+      ]
+    },
+    "db:push": {
+      "cache": false
+    },
+    "db:migrate": {
+      "cache": false,
+      "outputs": [
+        "prisma/migrations/**"
+      ]
+    },
+    "db:reset": {
+      "cache": false
+    },
+    "db:seed": {
+      "cache": false,
+      "dependsOn": [
+        "build"
+      ]
+    }
+  }
+}

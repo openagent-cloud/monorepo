@@ -1,5 +1,5 @@
 {
-  "name": "server",
+  "name": "electric-stack-template-server",
   "version": "0.1.0",
   "description": "NestJS backend for ElectricStack",
   "author": "",

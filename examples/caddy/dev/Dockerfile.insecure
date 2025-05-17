@@ -1,0 +1,3 @@
+FROM caddy:2.8.4-alpine
+
+# No JWT plugin needed for the insecure version
