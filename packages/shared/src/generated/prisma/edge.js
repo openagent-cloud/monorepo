@@ -181,7 +181,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/Users/truss/Desktop/projects/openagent/packages/shared/src/generated/prisma",
+      "value": "/app/packages/shared/src/generated/prisma",
       "fromEnvVar": null
     },
     "config": {
@@ -190,7 +190,7 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "darwin-arm64",
+        "value": "linux-arm64-openssl-3.0.x",
         "native": true
       },
       {
@@ -205,11 +205,12 @@ const config = {
     "previewFeatures": [
       "postgresqlExtensions"
     ],
-    "sourceFilePath": "/Users/truss/Desktop/projects/openagent/packages/shared/prisma/schema.prisma",
+    "sourceFilePath": "/app/packages/shared/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
-    "rootEnvPath": null
+    "rootEnvPath": null,
+    "schemaEnvPath": "../../../../server/.env"
   },
   "relativePath": "../../../prisma",
   "clientVersion": "5.22.0",
