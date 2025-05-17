@@ -184,7 +184,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/Users/truss/Desktop/projects/electric-stack-template/packages/shared/src/generated/prisma",
+      "value": "/app/packages/shared/src/generated/prisma",
       "fromEnvVar": null
     },
     "config": {
@@ -193,7 +193,7 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "darwin-arm64",
+        "value": "linux-arm64-openssl-3.0.x",
         "native": true
       },
       {
@@ -208,11 +208,12 @@ const config = {
     "previewFeatures": [
       "postgresqlExtensions"
     ],
-    "sourceFilePath": "/Users/truss/Desktop/projects/electric-stack-template/packages/shared/prisma/schema.prisma",
+    "sourceFilePath": "/app/packages/shared/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
-    "rootEnvPath": null
+    "rootEnvPath": null,
+    "schemaEnvPath": "../../../../server/.env"
   },
   "relativePath": "../../../prisma",
   "clientVersion": "6.8.2",
@@ -221,6 +222,7 @@ const config = {
     "db"
   ],
   "activeProvider": "postgresql",
+  "postinstall": false,
   "inlineDatasources": {
     "db": {
       "url": {
@@ -239,8 +241,8 @@ const fs = require('fs')
 config.dirname = __dirname
 if (!fs.existsSync(path.join(__dirname, 'schema.prisma'))) {
   const alternativePaths = [
-    "src/generated/prisma",
-    "generated/prisma",
+    "../shared/src/generated/prisma",
+    "shared/src/generated/prisma",
   ]
   
   const alternativePath = alternativePaths.find((altPath) => {
@@ -269,12 +271,16 @@ exports.PrismaClient = PrismaClient
 Object.assign(exports, Prisma)
 
 // file annotations for bundling tools to include these files
+path.join(__dirname, "query-engine-linux-arm64-openssl-3.0.x");
+path.join(process.cwd(), "../shared/src/generated/prisma/query-engine-linux-arm64-openssl-3.0.x")
+
+// file annotations for bundling tools to include these files
 path.join(__dirname, "query-engine-darwin-arm64");
-path.join(process.cwd(), "src/generated/prisma/query-engine-darwin-arm64")
+path.join(process.cwd(), "../shared/src/generated/prisma/query-engine-darwin-arm64")
 
 // file annotations for bundling tools to include these files
 path.join(__dirname, "query-engine-linux-arm64-openssl-1.1.x");
-path.join(process.cwd(), "src/generated/prisma/query-engine-linux-arm64-openssl-1.1.x")
+path.join(process.cwd(), "../shared/src/generated/prisma/query-engine-linux-arm64-openssl-1.1.x")
 // file annotations for bundling tools to include these files
 path.join(__dirname, "schema.prisma");
-path.join(process.cwd(), "src/generated/prisma/schema.prisma")
+path.join(process.cwd(), "../shared/src/generated/prisma/schema.prisma")
