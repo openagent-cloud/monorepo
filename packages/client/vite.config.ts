@@ -8,6 +8,7 @@ import { loadEnv } from 'vite';
 export default defineConfig(({ mode }) => {
   // Load env files based on mode
   const env = loadEnv(mode, process.cwd(), '');
+
   return {
     plugins: [react(), tailwindcss()],
 
@@ -25,13 +26,27 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src")
-      }
+      },
+      // Add this to help Vite find node_modules in Docker environment
+      preserveSymlinks: true,
+      // Fix for Docker environment - look in the root app node_modules too
+      modules: [
+        path.resolve(__dirname, 'node_modules'),
+        '/app/node_modules'
+      ]
     },
 
-    // Optimize dependencies
+    // ⚠️ CRITICAL: Must exclude pglite from optimization
     optimizeDeps: {
-      include: ['react', 'react-dom'],
-      exclude: ['@electric-sql/pglite'] // Exclude PGlite from optimization to prevent FS bundle issues
+      exclude: ['@electric-sql/pglite'],
+    },
+
+    build: {
+      target: 'es2020',
+    },
+
+    worker: {
+      format: 'es',
     },
 
     // Configure proper handling of ElectricSQL assets

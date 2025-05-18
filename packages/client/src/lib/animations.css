@@ -1,0 +1,103 @@
+@keyframes pulse-slow {
+  0%,
+  100% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lightning-1 {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  10%,
+  30% {
+    opacity: 1;
+    transform: translateX(100%);
+  }
+}
+
+@keyframes lightning-2 {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  50%,
+  70% {
+    opacity: 0.8;
+    transform: translateX(100%);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 5s infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.05s forwards;
+}
+
+.animate-lightning-1 {
+  animation: lightning-1 7s infinite;
+}
+
+.animate-lightning-2 {
+  animation: lightning-2 8s infinite;
+  animation-delay: 2s;
+}
+
+.lightning-streak {
+  position: absolute;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.8) 50%,
+    transparent 100%
+  );
+  top: 50%;
+  transform: translateX(-100%);
+}
+
+/* Scrollbar styles */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.4);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.6);
+}
+
+/* Dark mode scrollbar styles */
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4);
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}

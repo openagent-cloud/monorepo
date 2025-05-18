@@ -21,7 +21,9 @@ seed:
 	npx turbo run db:seed --filter=electric-stack-template-shared
 
 # Dev server (full stack with env setup)
-dev:
+dev: dev-d logs
+
+dev-d:
 	docker compose --env-file .env -f examples/docker/dev/docker-compose.yaml up -d
 
 dev-build:
@@ -42,20 +44,3 @@ full-reset: down-v up-build
 
 # Reset everything
 reset: full-reset migrate generate seed
-
-# Docker maintenance commands
-prune:
-	@echo "Pruning unused Docker resources (containers, networks, and dangling images)..."
-	docker system prune -f
-
-# Complete cleanup - WARNING: removes all unused volumes, images, and build cache
-prune-all:
-	@echo "WARNING: This will remove ALL unused Docker resources including volumes with data!"
-	@echo "You will lose data stored in Docker volumes that aren't currently used."
-	@echo "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
-	docker system prune -af --volumes
-	@echo "Docker system pruned completely"
-
-# Show Docker disk usage
-docker-disk:
-	docker system df

@@ -1,8 +1,8 @@
 {
-  "name": "electric-stack-template",
+  "name": "@openagent-cloud/monorepo",
   "version": "1.0.0",
   "private": true,
-  "description": "ElectricStack: A local-first stack template with ElectricSQL, NestJS, React, and Prisma",
+  "description": "Full Stack Developer Tool Bench",
   "packageManager": "npm@10.2.3",
   "scripts": {
     "dev": "turbo run dev",
@@ -16,21 +16,28 @@
     "db:seed": "turbo run db:seed --filter=electric-stack-template-shared"
   },
   "keywords": [
-    "electric",
-    "localsql",
+    "electric-sql",
     "nestjs",
     "react",
     "prisma",
+    "pglite",
     "monorepo"
   ],
-  "author": "",
+  "author": "tyzoo",
   "license": "MIT",
   "devDependencies": {
+    "@types/uuid": "10.0.0",
     "turbo": "^2.0.0"
   },
   "workspaces": [
     "packages/client",
     "packages/server",
     "packages/shared"
-  ]
+  ],
+  "dependencies": {
+    "@tanstack/react-query": "5.76.1",
+    "@tanstack/react-query-devtools": "5.76.1",
+    "remark-math": "6.0.0",
+    "uuid": "11.1.0"
+  }
 }

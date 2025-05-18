@@ -13,7 +13,10 @@ COPY packages/client/package*.json ./packages/client/
 # Copy turbo.json for workspace configuration
 COPY turbo.json ./
 
-# Install dependencies with minimal flags
+# Install dependencies specifically for electric packages first
+RUN cd packages/client && npm install @electric-sql/pglite @electric-sql/pglite-sync @electric-sql/pglite-react --no-save
+
+# Then install the rest of the dependencies
 RUN npm install --legacy-peer-deps
 
 # Copy the rest of the client code

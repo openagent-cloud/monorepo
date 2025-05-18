@@ -1,13 +1,8 @@
 :{$CADDY_PORT} {
   # Simple reverse proxy without JWT authentication
-  reverse_proxy {$ELECTRIC_URL:"http://localhost:3000"}
-
-  # Add CORS headers
-  header {
-    Access-Control-Allow-Origin *
-    Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-    Access-Control-Allow-Headers "Content-Type, Authorization"
-    Access-Control-Max-Age "3600"
+  reverse_proxy {$ELECTRIC_URL:"http://localhost:3000"} {
+    # Pass all headers through without modification
+    header_up Host {http.reverse_proxy.upstream.hostport}
   }
 
   # Enable compression for better performance
