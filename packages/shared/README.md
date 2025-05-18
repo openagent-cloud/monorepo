@@ -15,6 +15,12 @@ Welcome to ElectricStack ⚡️, the official template repository for building l
 
 Shared package with Prisma schema, migrations, and common types for the electric-stack-template project.
 
+> **Important Development Note:**
+>
+> In this project, **Docker Compose** is used to run the entire development stack. All services are running with hot reloading enabled when you use `make dev` from the root directory.
+>
+> The commands below are primarily for reference, or for use within the Docker Compose environment. Most database commands should be run using the Makefile commands from the root directory.
+
 ## Features
 
 - Prisma schema and migrations
@@ -139,6 +145,8 @@ npm run db:studio
 # Seed the database with initial data
 npm run db:seed
 ```
+
+> **Note:** For most database operations, prefer using the Makefile commands from the root directory, as they are configured to work with the Docker Compose environment.
 
 ### Build Commands
 

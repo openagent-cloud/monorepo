@@ -158,6 +158,25 @@ exports.Prisma.UserScalarFieldEnum = {
   uuid: 'uuid'
 };
 
+exports.Prisma.BlogScalarFieldEnum = {
+  id: 'id',
+  title: 'title',
+  content: 'content',
+  published: 'published',
+  author_id: 'author_id',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.CommentScalarFieldEnum = {
+  id: 'id',
+  content: 'content',
+  blog_id: 'blog_id',
+  author_id: 'author_id',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -198,7 +217,9 @@ exports.user_role = exports.$Enums.user_role = {
 
 exports.Prisma.ModelName = {
   token: 'token',
-  user: 'user'
+  user: 'user',
+  blog: 'blog',
+  comment: 'comment'
 };
 
 /**

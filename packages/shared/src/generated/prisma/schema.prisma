@@ -35,6 +35,14 @@ enum user_role {
   user
 }
 
+enum block_type {
+  header
+  text
+  image
+  quote
+  code
+}
+
 model token {
   created_at DateTime   @default(now())
   expires_at DateTime
@@ -73,6 +81,35 @@ model user {
   updated_at              DateTime  @updatedAt
   username                String    @unique
   uuid                    String?   @unique @default(uuid())
+  blogs                   blog[]
+  comments                comment[]
 
   @@map("users")
+}
+
+model blog {
+  id         String    @id @default(uuid())
+  title      String
+  content    String
+  published  Boolean   @default(false)
+  author     user      @relation(fields: [author_id], references: [id])
+  author_id  Int
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  comments   comment[]
+
+  @@map("blogs")
+}
+
+model comment {
+  id         String   @id @default(uuid())
+  content    String
+  blog       blog     @relation(fields: [blog_id], references: [id], onDelete: Cascade)
+  blog_id    String
+  author     user     @relation(fields: [author_id], references: [id])
+  author_id  Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("comments")
 }
