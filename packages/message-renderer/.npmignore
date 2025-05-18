@@ -1,0 +1,18 @@
+# Source files
+src/
+public/
+
+# Config files
+vite.config.ts
+tsconfig.json
+tsconfig.*.json
+components.json
+eslint.config.js
+.gitignore
+.eslintrc
+index.html
+
+# Development files
+node_modules/
+*.log
+.DS_Store 
