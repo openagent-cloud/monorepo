@@ -120,6 +120,25 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
   Serializable: 'Serializable'
 });
 
+exports.Prisma.BlogScalarFieldEnum = {
+  id: 'id',
+  title: 'title',
+  content: 'content',
+  published: 'published',
+  author_id: 'author_id',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.CommentScalarFieldEnum = {
+  id: 'id',
+  content: 'content',
+  blog_id: 'blog_id',
+  author_id: 'author_id',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
 exports.Prisma.TokenScalarFieldEnum = {
   created_at: 'created_at',
   expires_at: 'expires_at',
@@ -158,25 +177,6 @@ exports.Prisma.UserScalarFieldEnum = {
   uuid: 'uuid'
 };
 
-exports.Prisma.BlogScalarFieldEnum = {
-  id: 'id',
-  title: 'title',
-  content: 'content',
-  published: 'published',
-  author_id: 'author_id',
-  created_at: 'created_at',
-  updated_at: 'updated_at'
-};
-
-exports.Prisma.CommentScalarFieldEnum = {
-  id: 'id',
-  content: 'content',
-  blog_id: 'blog_id',
-  author_id: 'author_id',
-  created_at: 'created_at',
-  updated_at: 'updated_at'
-};
-
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -186,15 +186,15 @@ exports.Prisma.JsonNullValueInput = {
   JsonNull: Prisma.JsonNull
 };
 
+exports.Prisma.QueryMode = {
+  default: 'default',
+  insensitive: 'insensitive'
+};
+
 exports.Prisma.JsonNullValueFilter = {
   DbNull: Prisma.DbNull,
   JsonNull: Prisma.JsonNull,
   AnyNull: Prisma.AnyNull
-};
-
-exports.Prisma.QueryMode = {
-  default: 'default',
-  insensitive: 'insensitive'
 };
 
 exports.Prisma.NullsOrder = {
@@ -216,10 +216,10 @@ exports.user_role = exports.$Enums.user_role = {
 };
 
 exports.Prisma.ModelName = {
-  token: 'token',
-  user: 'user',
   blog: 'blog',
-  comment: 'comment'
+  comment: 'comment',
+  token: 'token',
+  user: 'user'
 };
 
 /**
