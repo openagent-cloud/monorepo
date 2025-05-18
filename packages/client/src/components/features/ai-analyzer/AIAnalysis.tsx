@@ -1,15 +1,19 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { createLogger } from '@/lib/logger'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ExternalLink, RotateCcw, Lightbulb, Code, Cpu, MessageCircle, Wand2, Loader2, Copy, CheckCircle2, CheckCheck, Package, Github } from 'lucide-react'
-import { ChatInterface } from '@/components/features/chat-ui/ChatInterface'
-import type { ChatMessage } from '@/components/features/chat-ui/ChatInterface'
-import type { ErrorPayload, ErrorAnalysisResult } from '@/lib/ai.service'
-// Import our new custom hooks
-import { useErrorAnalysis, useAiChat } from '@/lib/hooks/useAiAnalysis'
+import { ZustandChatInterface } from '@/components/features/chat-ui/ChatInterface'
+import type { ErrorPayload } from '@/lib/ai.service'
+import { useAIChatStore } from '@/stores/ai-chat.store'
 
 const logger = createLogger('AIAnalysis')
+
+// Utility function to limit text length
+const truncateText = (text: string, maxLength: number): string => {
+  if (!text || text.length <= maxLength) return text
+  return text.substring(0, maxLength).trim() + '...'
+}
 
 type AIAnalysisProps = {
   errorName: string
@@ -18,35 +22,34 @@ type AIAnalysisProps = {
   onAction: (actionType: string, payload?: string | ErrorPayload | null) => void
 }
 
-interface AnalysisProgressResult extends Partial<ErrorAnalysisResult> {
-  streamComplete?: boolean
-  data?: string
-  progressPercentage?: number
-}
+// Remove unused interface
+// interface AnalysisProgressResult extends Partial<ErrorAnalysisResult> {
+//   streamComplete?: boolean
+//   data?: string
+//   progressPercentage?: number
+// }
 
 export function AIAnalysis({ errorName, errorMessage, stackTrace, onAction }: AIAnalysisProps) {
-  const [isAnalyzing, setIsAnalyzing] = useState(true)
-  const [analysisError, setAnalysisError] = useState<string | null>(null)
-  const [analysis, setAnalysis] = useState<ErrorAnalysisResult | null>(null)
-  const [activeTab, setActiveTab] = useState<'analysis' | 'chat'>('analysis')
+  // Local state only for UI interactions, not duplicating Zustand state
   const [isApplyingSolution, setIsApplyingSolution] = useState(false)
   const [copiedSolution, setCopiedSolution] = useState<number | null>(null)
-  const [analysisProgress, setAnalysisProgress] = useState(0) // Track API progress percentage
 
-  // Only initialize chat state when chat tab is active
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [isSendingQuestion, setIsSendingQuestion] = useState(false)
-
-  // Analysis completion indicators
-  const [hasRootCauseAnalysis, setHasRootCauseAnalysis] = useState(false)
-  const [hasSolutionSteps, setHasSolutionSteps] = useState(false)
-  const [hasRelatedDocs, setHasRelatedDocs] = useState(false)
-  const [hasPackages, setHasPackages] = useState(false)
-  const [hasGithubIssues, setHasGithubIssues] = useState(false)
-
-  // Get our React Query hooks
-  const { analyzeErrorWithProgress, fetchAdditionalData } = useErrorAnalysis()
-  const { sendMessage } = useAiChat()
+  // Get state and actions from Zustand store with specific selectors
+  const activeTab = useAIChatStore(state => state.activeTab)
+  const setActiveTab = useAIChatStore(state => state.setActiveTab)
+  const analyzeError = useAIChatStore(state => state.analyzeError)
+  const resetAnalysis = useAIChatStore(state => state.resetAnalysis)
+  const analysis = useAIChatStore(state => state.currentAnalysis)
+  const isAnalyzing = useAIChatStore(state => state.isAnalyzing)
+  const analysisError = useAIChatStore(state => state.analysisError)
+  const analysisProgress = useAIChatStore(state => state.analysisProgress)
+  const hasRootCauseAnalysis = useAIChatStore(state => state.hasRootCauseAnalysis)
+  const hasSolutionSteps = useAIChatStore(state => state.hasSolutionSteps)
+  const hasRelatedDocs = useAIChatStore(state => state.hasRelatedDocs)
+  const hasPackages = useAIChatStore(state => state.hasPackages)
+  const hasGithubIssues = useAIChatStore(state => state.hasGithubIssues)
+  const initializeChat = useAIChatStore(state => state.initializeChat)
+  const updateSolution = useAIChatStore(state => state.updateSolution)
 
   // Reset copied solution state after 2 seconds
   useEffect(() => {
@@ -56,283 +59,33 @@ export function AIAnalysis({ errorName, errorMessage, stackTrace, onAction }: AI
     }
   }, [copiedSolution])
 
-  // Initialize chat with first message when tab changes to chat
+  // Initialize chat tab with welcome message when it becomes active
   useEffect(() => {
-    if (activeTab === 'chat' && messages.length === 0 && analysis) {
-      setMessages([
-        {
-          role: 'assistant',
-          content: `I've analyzed the error "${errorName}: ${errorMessage}". ${analysis.rootCause} ${analysis.explanation}`,
-          timestamp: new Date()
-        }
-      ])
-    }
-  }, [activeTab, messages.length, analysis, errorName, errorMessage])
-
-  // Use AI service to analyze the error
-  const analyzeError = useCallback(async () => {
-    // Don't block analysis on mount - always allow it to run
-    logger.info('Starting error analysis...')
-
-    const analysisStartTime = Date.now()  // Record when analysis started
-
-    setIsAnalyzing(true)
-    setAnalysisProgress(0) // Reset progress
-    setAnalysisError(null)
-    setHasRootCauseAnalysis(false)
-    setHasSolutionSteps(false)
-    setHasRelatedDocs(false)
-    setHasPackages(false)
-    setHasGithubIssues(false)
-
-    try {
-      // Call the AI service to analyze the error - don't wait for GitHub issues
-      logger.info('Calling AI service...')
-
-      // Helper function to track progress without progressively revealing content
-      const trackAnalysisProgress = (result: AnalysisProgressResult) => {
-        // Check if we have the OpenAI stream completion signal
-        if (result.streamComplete || (typeof result === 'object' && 'data' in result && typeof result.data === 'string' && result.data.includes('[DONE]'))) {
-          console.log("Stream complete - showing all content at once")
-
-          // Animate to 100% first
-          setAnalysisProgress(100)
-
-          // Short timeout to let the progress bar animation finish
-          setTimeout(() => {
-            // Set analysis data all at once
-            if (typeof result === 'object' && !('data' in result)) {
-              setAnalysis(result as ErrorAnalysisResult)
-            }
-
-            // Reveal all content sections 
-            setHasRootCauseAnalysis(true)
-            setHasSolutionSteps(true)
-            setHasRelatedDocs(true)
-            if (result.packages && result.packages.length > 0) {
-              setHasPackages(true)
-            }
-
-            // Notify parent of completion
-            onAction('analysis-update')
-          }, 300)
-
-          return
-        }
-
-        // Instead of trying to parse partial JSON, just update progress based on length
-        // This is a simpler, more reliable approach
-
-        // More characters = more progress, capped at 95%
-        if (result.progressPercentage) {
-          setAnalysisProgress(result.progressPercentage)
-        } else {
-          // Smoothly increase progress to avoid jumps - cap at 95% until complete
-          setAnalysisProgress(prevProgress => Math.min(95, Math.max(prevProgress, 50)))
-        }
-      }
-
-      // Get the analysis result using our custom hook for streaming
-      const result = await analyzeErrorWithProgress(
-        {
-          name: errorName,
-          message: errorMessage,
-          stack: stackTrace
-        },
-        trackAnalysisProgress
+    if (activeTab === 'chat' && analysis) {
+      initializeChat(
+        errorName,
+        errorMessage,
+        analysis.rootCause,
+        analysis.explanation
       )
+    }
+  }, [activeTab, analysis, errorName, errorMessage, initializeChat])
 
-      logger.info('Initial AI analysis complete')
+  // Don't start analysis automatically when the component mounts
+  // The parent component will control when analysis starts
+  // using the onAction callback to notify when analysis is complete
 
-      // Make sure we have the final result set
-      setAnalysis(result)
-
-      // Once analysis is complete, set progress to 100%
-      setAnalysisProgress(100)
-
-      // Now that analysis is complete, reveal all sections at once
-      setHasRootCauseAnalysis(true)
-      setHasSolutionSteps(true)
-      setHasRelatedDocs(true)
-      if (result.packages && result.packages.length > 0) {
-        setHasPackages(true)
-      }
-
-      // Notify parent of successful analysis
-      onAction('analysis-update')
-
-      // In parallel, fetch GitHub issues and other external data
-      try {
-        const enhancedResult = await fetchAdditionalData({
-          name: errorName,
-          message: errorMessage,
-          stack: stackTrace
-        })
-
-        // Update with GitHub issues and any other enhanced data
-        if (enhancedResult.githubIssues) {
-          setAnalysis(prev => {
-            if (prev === null) return prev
-            return {
-              ...prev,
-              githubIssues: enhancedResult.githubIssues
-            }
-          })
-          setHasGithubIssues(true)
-        }
-      } catch (enhancementErr) {
-        // Just log the error but don't show to user since this is an enhancement
-        logger.error('Error fetching additional data:', enhancementErr)
-        // Still show the GitHub issues section even if empty
-        setHasGithubIssues(true)
-      }
-
-    } catch (err) {
-      logger.error('Error analyzing error:', err)
-
-      // Set a more user-friendly error message
-      setAnalysisError('Unable to analyze this error')
-
-      // Capture actual error message
-      const errorMessage = err instanceof Error ? err.message : String(err)
-
-      // Notify parent of error with details
-      onAction('analysis-error', {
+  // Start analysis only when isAnalyzing becomes true
+  useEffect(() => {
+    if (isAnalyzing && !analysis) {
+      logger.info('Starting error analysis')
+      analyzeError({
         name: errorName,
         message: errorMessage,
         stack: stackTrace
-      })
-
-      // Reset the UI to its initial state
-      setIsAnalyzing(false)
-      setAnalysis(null)
-
-      // Return early to avoid setting isAnalyzing to false again
-      return
+      }, onAction)
     }
-
-    // Add a small delay before setting isAnalyzing to false
-    // This ensures skeletons are visible long enough for users to notice
-    const minAnalysisTime = 1000  // Minimum time in ms to show loading state
-    const analysisEndTime = Date.now()
-    const analysisTime = analysisEndTime - analysisStartTime
-
-    console.log(`Analysis completed in ${analysisTime}ms`)
-
-    if (analysisTime < minAnalysisTime) {
-      console.log(`Adding delay of ${minAnalysisTime - analysisTime}ms to ensure loading indicators are visible`)
-      setTimeout(() => {
-        setIsAnalyzing(false)
-      }, minAnalysisTime - analysisTime)
-    } else {
-      setIsAnalyzing(false)
-    }
-  }, [errorName, errorMessage, stackTrace, onAction, analyzeErrorWithProgress, fetchAdditionalData])
-
-  // Start analysis when the component mounts, but only once
-  useEffect(() => {
-    analyzeError()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Send a user question to the AI
-  const sendQuestion = useCallback(async (question: string) => {
-    if (!question.trim() || isSendingQuestion) return
-
-    // Add user message
-    const newMessages: ChatMessage[] = [
-      ...messages,
-      {
-        role: 'user',
-        content: question,
-        timestamp: new Date()
-      }
-    ]
-    setMessages(newMessages)
-
-    // Add loading message from assistant
-    setMessages([
-      ...newMessages,
-      {
-        role: 'assistant',
-        content: '',
-        status: 'loading',
-        timestamp: new Date()
-      }
-    ])
-
-    setIsSendingQuestion(true)
-
-    try {
-      // Build context from the error and analysis
-      const systemContext = analysis ?
-        `You are helping debug a JavaScript/TypeScript error:
-Error Name: ${errorName}
-Error Message: ${errorMessage}
-Root Cause: ${analysis.rootCause}
-Explanation: ${analysis.explanation}
-
-Your task is to assist the user with understanding and fixing this error.
-Be concise and helpful, providing code examples when appropriate.` :
-        `You are helping debug a JavaScript/TypeScript error:
-Error Name: ${errorName}
-Error Message: ${errorMessage}
-
-Your task is to assist the user with understanding and fixing this error.
-Be concise and helpful, providing code examples when appropriate.`
-
-      // Format the chat history for the AI service
-      const chatHistory = messages
-        .filter(msg => msg.role !== 'system' && msg.status !== 'loading')
-        .map(msg => ({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content
-        }))
-
-      // Add the user's new question
-      chatHistory.push({
-        role: 'user',
-        content: question
-      })
-
-      // Get the AI response using our React Query hook
-      const response = await sendMessage({
-        messages: [
-          { role: 'system', content: systemContext },
-          ...chatHistory
-        ],
-        temperature: 0.7
-      })
-
-      // Update the loading message with the response
-      setMessages(prev => {
-        const updated = [...prev]
-        updated[updated.length - 1] = {
-          role: 'assistant',
-          content: response,
-          status: 'complete',
-          timestamp: new Date()
-        }
-        return updated
-      })
-
-    } catch (err) {
-      // Update the loading message with an error
-      logger.error('Error sending question:', err)
-      setMessages(prev => {
-        const updated = [...prev]
-        updated[updated.length - 1] = {
-          role: 'assistant',
-          content: 'Sorry, I encountered an error while processing your question. Please try again.',
-          status: 'error',
-          timestamp: new Date()
-        }
-        return updated
-      })
-    } finally {
-      setIsSendingQuestion(false)
-    }
-  }, [messages, isSendingQuestion, analysis, errorName, errorMessage, sendMessage])
+  }, [isAnalyzing, analysis, analyzeError, errorName, errorMessage, stackTrace, onAction])
 
   // Simulate applying a solution
   const applySolution = async (index: number) => {
@@ -342,19 +95,9 @@ Be concise and helpful, providing code examples when appropriate.`
       // In a real implementation, this would apply the solution to the code
       await new Promise(resolve => setTimeout(resolve, 1500))
 
-      // Update the solution to mark it as completed
-      if (analysis && analysis.solutions) {
-        const updatedSolutions = [...analysis.solutions]
-        updatedSolutions[index] = {
-          ...updatedSolutions[index],
-          completed: true
-        }
-
-        setAnalysis({
-          ...analysis,
-          solutions: updatedSolutions
-        })
-      }
+      // Update the solution in the Zustand store
+      updateSolution(index, { completed: true })
+      logger.info('Solution applied:', index)
 
       // Trigger the onAction callback to notify the parent component
       onAction('apply-solution', {
@@ -376,13 +119,24 @@ Be concise and helpful, providing code examples when appropriate.`
     setCopiedSolution(index)
   }
 
-  // Handle restart analysis
+  // Handle restart analysis from Zustand store
   const handleRestartAnalysis = () => {
-    setAnalysis(null)
-    setMessages([])
-    setAnalysisError(null)
-    analyzeError()
+    resetAnalysis()
+    analyzeError({ name: errorName, message: errorMessage, stack: stackTrace }, onAction)
   }
+
+  // Use the Zustand-connected chat component
+  const chatComponent = useMemo(() => (
+    <ZustandChatInterface
+      placeholder="Ask a question about this error..."
+      errorContext={{
+        errorName,
+        errorMessage,
+        rootCause: analysis?.rootCause,
+        explanation: analysis?.explanation
+      }}
+    />
+  ), [analysis, errorName, errorMessage])
 
   // This function will replace the existing package section in the renderAnalysisTab function
   const renderPackagesSection = () => {
@@ -640,7 +394,7 @@ Be concise and helpful, providing code examples when appropriate.`
             ) : analysis?.rootCause ? (
               <div className="bg-white dark:bg-[#171717] rounded-lg border border-[#f0f0f0] dark:border-[#262626]/70 p-3.5">
                 <p className="text-sm text-[#0f172a] dark:text-[#e5e7eb] leading-relaxed">
-                  {analysis.rootCause}
+                  {truncateText(analysis.rootCause, 100)}
                 </p>
                 <p className="text-sm text-[#475569] dark:text-[#94a3b8] mt-2 leading-relaxed">
                   {analysis.explanation}
@@ -677,7 +431,7 @@ Be concise and helpful, providing code examples when appropriate.`
             ) : analysis?.eli5 ? (
               <div className="bg-[#fffbeb] dark:bg-[#422006]/30 rounded-lg border border-[#fef3c7] dark:border-[#854d0e]/50 p-3.5">
                 <p className="text-sm text-[#92400e] dark:text-[#fcd34d] leading-relaxed">
-                  {analysis.eli5}
+                  {truncateText(analysis.eli5, 150)}
                 </p>
               </div>
             ) : (
@@ -892,16 +646,6 @@ Be concise and helpful, providing code examples when appropriate.`
       </div>
     )
   }
-
-  // Memoize the chat component to prevent unnecessary re-renders
-  const chatComponent = useMemo(() => (
-    <ChatInterface
-      messages={messages}
-      onSendMessage={sendQuestion}
-      isSendingMessage={isSendingQuestion}
-      placeholder="Ask a question about this error..."
-    />
-  ), [messages, sendQuestion, isSendingQuestion])
 
   return (
     <div className="border-t border-[#f0f0f0] dark:border-[#262626]/70 bg-[#fafafa]/50 dark:bg-[#0f0f0f]/20">

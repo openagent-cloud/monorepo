@@ -328,86 +328,11 @@ class AIService {
     onProgressUpdate?: (partialResult: ErrorAnalysisResult) => void
   ): Promise<ErrorAnalysisResult> {
     logger.info('AI Service analyzeInitialErrorAnalysis called', error)
-    console.log('AI Service analyzeInitialErrorAnalysis called', error)
 
     if (!this.tenantSecret) {
-      logger.info('No tenant secret, using simulated response')
-      console.log('No tenant secret, using simulated response')
-
-      // For demo mode, simulate streaming updates
-      if (onProgressUpdate) {
-        const simulatedResult = this.getSimulatedErrorAnalysis(error)
-
-        // Simulate progressive streaming by revealing parts of the result over time
-        const partialResult: ErrorAnalysisResult = {
-          rootCause: "",
-          explanation: "",
-          solutions: [],
-          relatedDocs: [],
-          packages: simulatedResult.packages || [] // Include packages right from the start
-        }
-
-        // First update - root cause only (25%)
-        setTimeout(() => {
-          partialResult.rootCause = simulatedResult.rootCause
-          onProgressUpdate({ ...partialResult })
-        }, 500)
-
-        // Second update - add explanation (40%)
-        setTimeout(() => {
-          partialResult.explanation = simulatedResult.explanation
-          onProgressUpdate({ ...partialResult })
-        }, 1200)
-
-        // Third update - add one solution (55%) 
-        setTimeout(() => {
-          if (simulatedResult.solutions.length > 0) {
-            partialResult.solutions = [simulatedResult.solutions[0]]
-          }
-          onProgressUpdate({ ...partialResult })
-        }, 1800)
-
-        // Fourth update - add more solutions (70%)
-        setTimeout(() => {
-          if (simulatedResult.solutions.length > 1) {
-            partialResult.solutions = simulatedResult.solutions.slice(0, 2)
-          }
-          onProgressUpdate({ ...partialResult })
-        }, 2200)
-
-        // Fifth update - all solutions (80%)
-        setTimeout(() => {
-          partialResult.solutions = simulatedResult.solutions
-          onProgressUpdate({ ...partialResult })
-        }, 2500)
-
-        // Sixth update - docs (90%)
-        setTimeout(() => {
-          partialResult.relatedDocs = simulatedResult.relatedDocs
-          onProgressUpdate({ ...partialResult })
-        }, 3000)
-
-        // Final update - everything (100%)
-        setTimeout(() => {
-          partialResult.eli5 = simulatedResult.eli5
-          partialResult.githubIssues = simulatedResult.githubIssues
-
-          // Add the streamComplete flag to signal completion
-          const completeResult = {
-            ...partialResult,
-            streamComplete: true
-          };
-
-          onProgressUpdate(completeResult);
-        }, 3500)
-      }
-
-      const result = this.getSimulatedErrorAnalysis(error)
-      this.cachedAnalysis = result
-      return result
+      throw new Error('Tenant secret not found. AI features are disabled.')
     }
 
-    // Continue with normal analysis but skip GitHub issues
     try {
       // Extract packages from the stack trace with error context
       const packages = this.extractPackages(error.stack, error.name, error.message)
@@ -431,11 +356,11 @@ class AIService {
 
       const systemPrompt = `You are an AI assistant specialized in analyzing JavaScript/TypeScript errors.
 Analyze the provided error details and provide:
-1. A concise root cause (one sentence)
+1. A concise root cause (max 15 words, be very brief)
 2. A detailed explanation (2-3 sentences)
 3. 2-3 practical solutions (with code examples)
 4. Related documentation links
-5. An "Explain Like I'm 5" (ELI5) explanation that uses simple language and analogies for beginners to describe the following error: ${error.message}
+5. A brief "Explain Like I'm 5" (ELI5) explanation (max 25 words) that uses simple language to describe: ${error.message}
 
 Format the response as a JSON object with the following structure:
 {
@@ -454,7 +379,7 @@ Format the response as a JSON object with the following structure:
       "url": "string"
     }
   ],
-  "eli5": "string" // simple, beginner-friendly explanation using metaphors if possible
+  "eli5": "string" // Keep this brief (25 words max)
 }`
 
       const errorDetails = `
@@ -509,7 +434,7 @@ ${error.stack}
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
           let buffer = '';
-          let partialContent = '';
+          let accumulatedContent = '';
           let isComplete = false;
 
           // Initialize the partial result with the packages we've already extracted
@@ -558,33 +483,91 @@ ${error.stack}
                   }
 
                   try {
-                    // Try to parse the JSON
+                    // Parse the JSON data
                     const parsed = JSON.parse(data);
-
                     const content = parsed.choices?.[0]?.delta?.content || '';
 
                     if (content) {
-                      partialContent += content;
+                      // Accumulate the content to build the AI response parts
+                      accumulatedContent += content; // Accumulate all content for possible full JSON parsing
 
-                      // Instead of trying to parse partial JSON, just update progress based on length
-                      // This is a simpler, more reliable approach
-                      let progressPercentage = 0;
-
-                      // More characters = more progress, capped at 95%
-                      const contentLength = partialContent.length;
-                      if (contentLength > 0) {
-                        // Assuming an average complete response is around 1000-2000 chars
-                        progressPercentage = Math.min(95, Math.floor(contentLength / 20));
-
-                        // Send regular progress updates but don't try to parse partial JSON
-                        onProgressUpdate({
-                          ...partialResult,
-                          progressPercentage
-                        });
+                      if (content.includes('"rootCause"')) {
+                        partialResult.rootCause += content;
+                      } else if (content.includes('"explanation"')) {
+                        partialResult.explanation += content;
+                      } else if (content.includes('"solutions"')) {
+                        // Start accumulating solutions
+                        const solutionMatch = content.match(/("solutions"\s*:\s*\[)(.*)/);
+                        if (solutionMatch && solutionMatch[2]) {
+                          partialResult.solutions = [];
+                        }
+                      } else if (content.includes('"relatedDocs"')) {
+                        // Start accumulating related docs
+                        const docsMatch = content.match(/("relatedDocs"\s*:\s*\[)(.*)/);
+                        if (docsMatch && docsMatch[2]) {
+                          partialResult.relatedDocs = [];
+                        }
+                      } else if (content.includes('"eli5"')) {
+                        const eli5Match = content.match(/("eli5"\s*:\s*")(.*)/);
+                        if (eli5Match && eli5Match[2]) {
+                          partialResult.eli5 = eli5Match[2];
+                        }
                       }
+
+                      // Try to extract complete JSON objects as they arrive
+                      try {
+                        // Check if we have accumulated content that looks like a complete JSON object
+                        if (accumulatedContent.includes('{') && accumulatedContent.includes('}')) {
+                          const jsonStr = accumulatedContent.substring(
+                            accumulatedContent.indexOf('{'),
+                            accumulatedContent.lastIndexOf('}') + 1
+                          );
+                          try {
+                            const parsed = JSON.parse(jsonStr);
+                            if (parsed.rootCause) {
+                              partialResult.rootCause = parsed.rootCause;
+                            }
+                            if (parsed.explanation) {
+                              partialResult.explanation = parsed.explanation;
+                            }
+                            if (parsed.solutions) {
+                              partialResult.solutions = parsed.solutions;
+                            }
+                            if (parsed.relatedDocs) {
+                              partialResult.relatedDocs = parsed.relatedDocs;
+                            }
+                            if (parsed.eli5) {
+                              partialResult.eli5 = parsed.eli5;
+                            }
+                          } catch {
+                            // Ignore JSON parsing errors for incomplete objects
+                          }
+                        }
+                      } catch {
+                        // Ignore parsing errors for incomplete JSON
+                      }
+
+                      // Calculate progress based on content received so far
+                      let completedSections = 0;
+                      const totalSections = 5; // rootCause, explanation, solutions, docs, eli5
+
+                      if (partialResult.rootCause) completedSections++;
+                      if (partialResult.explanation) completedSections++;
+                      if (partialResult.solutions.length > 0) completedSections++;
+                      if (partialResult.relatedDocs.length > 0) completedSections++;
+                      if (partialResult.eli5) completedSections++;
+
+                      const progressPercentage = Math.min(95, (completedSections / totalSections) * 100);
+
+                      // Call the callback with the new content
+                      onProgressUpdate({
+                        ...partialResult,
+                        progressPercentage
+                      });
                     }
-                  } catch {
-                    // Silent - expected for partial JSON chunks
+                  } catch (error) {
+                    // Ignore parse errors for partial chunks
+                    logger.debug('Error parsing streaming chunk:', error);
                   }
                 }
               }
@@ -594,44 +577,6 @@ ${error.stack}
           } catch (streamError) {
             logger.error('Error reading stream:', streamError);
             // Fall back to non-streaming approach if streaming fails
-          }
-
-          // Once we're done streaming, try to parse the full content
-          try {
-            // Wait until we have a complete JSON object with closing brace
-            if (partialContent.includes('{') && partialContent.includes('}')) {
-              // Find the outermost JSON object
-              const startIdx = partialContent.indexOf('{');
-              const endIdx = partialContent.lastIndexOf('}') + 1;
-
-              if (startIdx >= 0 && endIdx > startIdx) {
-                const jsonStr = partialContent.substring(startIdx, endIdx);
-                try {
-                  const finalResult = JSON.parse(jsonStr);
-
-                  // Apply all the final result fields
-                  partialResult = {
-                    ...partialResult,
-                    rootCause: finalResult.rootCause || partialResult.rootCause || "",
-                    explanation: finalResult.explanation || partialResult.explanation || "",
-                    solutions: finalResult.solutions || partialResult.solutions || [],
-                    relatedDocs: finalResult.relatedDocs || partialResult.relatedDocs || [],
-                    eli5: finalResult.eli5 || partialResult.eli5 || "",
-                    packages: partialResult.packages // Keep the packages we extracted
-                  };
-
-                  // Signal completion
-                  onProgressUpdate({
-                    ...partialResult,
-                    streamComplete: true
-                  });
-                } catch (jsonError) {
-                  logger.error('Error parsing final JSON:', jsonError);
-                }
-              }
-            }
-          } catch (finalError) {
-            logger.error('Error with final parsing:', finalError);
           }
 
           // Cache the analysis result
@@ -683,9 +628,7 @@ ${error.stack}
         error.message.includes('parse')
       )) {
         // For API errors, network issues, or parsing problems, use simulated response
-        const result = this.getSimulatedErrorAnalysis(error as Error)
-        this.cachedAnalysis = result
-        return result
+        throw error
       }
       // For other errors, propagate to the UI for better error reporting
       throw error
@@ -695,12 +638,9 @@ ${error.stack}
   // Fetch additional data like GitHub issues to enhance the initial analysis
   async fetchAdditionalErrorData(error: ErrorPayload): Promise<{ githubIssues?: GitHubIssue[] }> {
     logger.info('AI Service fetchAdditionalErrorData called', error)
-    console.log('AI Service fetchAdditionalErrorData called', error)
 
     if (!this.tenantSecret) {
-      // Simulate a delay for realistic behavior
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      return { githubIssues: this.getSimulatedGithubIssues(null, error.name) }
+      throw new Error('Tenant secret not found. AI features are disabled.')
     }
 
     try {
@@ -715,20 +655,16 @@ ${error.stack}
       return { githubIssues: issueSearchResults.generalIssues }
     } catch (err) {
       logger.error('Error fetching additional data:', err)
-      // Safely handle the error - default to basic simulated GitHub issues
-      return { githubIssues: this.getSimulatedGithubIssues(null, error.name) }
+      throw err
     }
   }
 
   // Original method kept for backward compatibility
   async analyzeError(error: ErrorPayload): Promise<ErrorAnalysisResult> {
     logger.info('AI Service analyzeError called', error)
-    console.log('AI Service analyzeError called', error)
 
     if (!this.tenantSecret) {
-      logger.info('No tenant secret, using simulated response')
-      console.log('No tenant secret, using simulated response')
-      return this.getSimulatedErrorAnalysis(error)
+      throw new Error('Tenant secret not found. AI features are disabled.')
     }
 
     try {
@@ -756,11 +692,11 @@ ${error.stack}
 
       const systemPrompt = `You are an AI assistant specialized in analyzing JavaScript/TypeScript errors.
 Analyze the provided error details and provide:
-1. A concise root cause (one sentence)
+1. A concise root cause (max 15 words, be very brief)
 2. A detailed explanation (2-3 sentences)
 3. 2-3 practical solutions (with code examples)
 4. Related documentation links
-5. An "Explain Like I'm 5" (ELI5) explanation that uses simple language and analogies for beginners to describe the following error: ${error.message}
+5. A brief "Explain Like I'm 5" (ELI5) explanation (max 25 words) that uses simple language to describe: ${error.message}
 
 Format the response as a JSON object with the following structure:
 {
@@ -779,7 +715,7 @@ Format the response as a JSON object with the following structure:
       "url": "string"
     }
   ],
-  "eli5": "string" // simple, beginner-friendly explanation using metaphors if possible
+  "eli5": "string" // Keep this brief (25 words max)
 }`
 
       const errorDetails = `
@@ -834,13 +770,13 @@ ${error.stack}
       }
     } catch (error) {
       logger.error('Error analyzing with OpenAI:', error)
-      return this.getSimulatedErrorAnalysis(error as Error)
+      throw error
     }
   }
 
   async getChatCompletion(params: ChatCompletionParams): Promise<string> {
     if (!this.tenantSecret) {
-      return this.getSimulatedChatResponse(params.messages)
+      throw new Error('Tenant secret not found. AI features are disabled.')
     }
 
     try {
@@ -867,293 +803,96 @@ ${error.stack}
       return data.choices[0]?.message?.content || 'Sorry, I couldn\'t generate a response'
     } catch (error) {
       logger.error('Error with chat completion:', error)
-      return this.getSimulatedChatResponse(params.messages)
+      throw error
     }
   }
 
-  // Provides simulated responses for demo when API key isn't available
-  private getSimulatedErrorAnalysis(error: ErrorPayload | Error): ErrorAnalysisResult {
-    logger.info('Generating simulated error analysis')
-    console.log('Generating simulated error analysis')
+  // Add a streaming version of the chat completion
+  async getChatCompletionStream(
+    params: ChatCompletionParams,
+    onTokenReceived: (token: string, isDone: boolean) => void
+  ): Promise<void> {
+    if (!this.tenantSecret) {
+      throw new Error('Tenant secret not found. AI features are disabled.')
+    }
 
-    // Extract error properties regardless of input type
-    const errorName = error instanceof Error ? error.name : (error as ErrorPayload).name
-    const errorMessage = error instanceof Error ? error.message : (error as ErrorPayload).message
+    try {
+      // Configure request with streaming enabled
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.tenantSecret}`
+        },
+        body: JSON.stringify({
+          payload: {
+            model: this.model,
+            messages: params.messages,
+            temperature: params.temperature || 0.7,
+            stream: true // Enable streaming
+          }
+        })
+      })
 
-    // Extract packages if we have a stack trace
-    const stack = error instanceof Error ? error.stack || '' : (error as ErrorPayload).stack || ''
-    const packages = this.extractPackages(stack, errorName, errorMessage)
+      if (!response.ok) {
+        throw new Error(`API request failed with status: ${response.status}`)
+      }
 
-    // Add some simulated repo URLs for demo purposes
-    if (packages.length > 0) {
-      for (const pkg of packages.slice(0, 3)) {
-        pkg.repoUrl = KNOWN_REPOS[pkg.name] || `https://github.com/example/${pkg.name}`
+      // Process the streaming response
+      if (response.body) {
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
 
-        // Add relevance scores based on position in the extraction (first ones have higher relevance)
-        const index = packages.indexOf(pkg)
-        pkg.relevanceScore = Math.max(20, 100 - (index * 15))
+        // Keep reading chunks until the stream is done
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) {
+            // Final callback with isDone=true
+            onTokenReceived('', true)
+            break
+          }
 
-        // Add common issues if available in our dictionary
-        pkg.commonIssues = COMMON_PACKAGE_ISSUES[pkg.name]
+          // Decode the chunk and add to buffer
+          buffer += decoder.decode(value, { stream: true })
 
-        // Add compatibility info if available
-        pkg.compatibilityInfo = COMPATIBILITY_INFO[pkg.name]
+          // Process lines from the buffer
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || '' // Keep the unfinished line in the buffer
 
-        // Add simulated GitHub issues
-        if (index === 0) {
-          pkg.relatedIssues = this.getSimulatedGithubIssues(pkg.name, errorName)
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6)
+
+              // Check for stream completion signal
+              if (data === '[DONE]') {
+                onTokenReceived('', true)
+                break
+              }
+
+              try {
+                // Parse the JSON data
+                const parsed = JSON.parse(data)
+                const content = parsed.choices?.[0]?.delta?.content || ''
+
+                if (content) {
+                  // Call the callback with the new token
+                  onTokenReceived(content, false)
+                }
+              } catch {
+                // Ignore parse errors for partial chunks
+              }
+            }
+          }
         }
       }
-    }
-
-    // Generate simulated general GitHub issues
-    const githubIssues = this.getSimulatedGithubIssues(null, errorName)
-
-    // Generate mock error analysis results for the demo
-    let rootCause = ""
-    let explanation = ""
-    let solutions: SolutionStep[] = []
-    let relatedDocs: RelatedDoc[] = []
-    let eli5 = ""
-
-    // Generate appropriate mock responses based on error type
-    if (errorName.includes("TypeError") && errorMessage.includes("undefined")) {
-      rootCause = "Attempting to access a property or method on an undefined value."
-      explanation = "This happens when you try to access a property on a variable that is undefined. The error occurs because undefined is not an object and doesn't have any properties or methods."
-      solutions = [
-        {
-          title: "Add a null check before accessing the property",
-          description: "Use optional chaining or a conditional check to ensure the object exists before accessing its properties.",
-          code: `// Instead of this:
-const value = object.property.nestedProperty;
-
-// Use optional chaining (ES2020+):
-const value = object?.property?.nestedProperty;
-
-// Or traditional null checks:
-const value = object && object.property && object.property.nestedProperty;`
-        },
-        {
-          title: "Initialize the variable before using it",
-          description: "Make sure the variable is properly initialized with a default value before attempting to use it.",
-          code: `// Initialize with default empty object
-const object = data || {};
-
-// Or with default values for specific properties
-const { property = 'default' } = object || {};`
-        },
-        {
-          title: "Check function parameters",
-          description: "If the undefined value is coming from a function parameter, add parameter validation.",
-          code: `function processData(data) {
-  // Early return or throw error if data is missing
-  if (!data) {
-    return null; // or throw new Error('Data is required');
-  }
-  
-  // Now it's safe to work with data
-  return data.property;
-}`
-        }
-      ]
-      relatedDocs = [
-        {
-          title: "Understanding JavaScript Errors",
-          url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors"
-        },
-        {
-          title: "Optional Chaining (?.) Operator",
-          url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining"
-        },
-        {
-          title: "Nullish Coalescing Operator (??)",
-          url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing"
-        }
-      ]
-      eli5 = "Imagine you're trying to find a toy in a box that's inside another box, but one of the boxes is missing. You can't look inside something that isn't there! Always make sure each box exists before trying to open it."
-    }
-    else if (errorName.includes("SyntaxError")) {
-      rootCause = "Invalid JavaScript syntax in your code."
-      explanation = "The JavaScript parser couldn't understand your code because it contains syntax that doesn't follow the language rules. This could be missing brackets, quotes, semicolons, or other syntax errors."
-      solutions = [
-        {
-          title: "Correct the syntax error",
-          description: "Look for missing closing brackets, quotes, or parentheses near the line indicated in the error.",
-          code: `// Instead of this (missing closing bracket):
-function doSomething() {
-  if (condition) {
-    // code
-  
-// Fix it:
-function doSomething() {
-  if (condition) {
-    // code
-  }
-}`
-        },
-        {
-          title: "Use a linter or formatter",
-          description: "Set up ESLint or Prettier in your project to automatically catch and fix syntax errors.",
-          code: `// Install ESLint
-npm install eslint --save-dev
-
-// Initialize configuration
-npx eslint --init
-
-// Run ESLint to find syntax errors
-npx eslint yourfile.js`
-        }
-      ]
-      relatedDocs = [
-        {
-          title: "JavaScript Syntax Basics",
-          url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types"
-        },
-        {
-          title: "ESLint Documentation",
-          url: "https://eslint.org/docs/user-guide/getting-started"
-        }
-      ]
-      eli5 = "Think of code like writing a letter, but you forgot to finish some of your sentences or put quotation marks where they belong. When someone tries to read it, they get confused because the sentences don't follow the rules of language. The computer feels the same way when your code has syntax errors!"
-    }
-    else if (errorName.includes("ReferenceError")) {
-      rootCause = "Trying to use a variable or function that hasn't been defined."
-      explanation = "This error occurs when you reference a variable or function that doesn't exist in the current scope. It might be misspelled, not yet defined, or defined in a different scope that's not accessible."
-      solutions = [
-        {
-          title: "Check variable naming and scope",
-          description: "Make sure the variable is defined before use and check for typos in variable names.",
-          code: `// Define the variable before using it
-const myVariable = 'some value';
-
-// Check scope issues, especially with let and const
-function myFunction() {
-  let scopedVar = 'inside'; // only available inside this function
-}
-
-// This would cause a ReferenceError
-// console.log(scopedVar);`
-        },
-        {
-          title: "Import missing dependencies",
-          description: "If you're trying to use an external library or component, make sure it's properly imported.",
-          code: `// Make sure to import any external dependencies
-import React from 'react';
-import { someFunction } from './utils';
-
-// Now you can use React and someFunction`
-        }
-      ]
-      relatedDocs = [
-        {
-          title: "Variable Scope in JavaScript",
-          url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types#Variable_scope"
-        },
-        {
-          title: "Understanding ReferenceError",
-          url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ReferenceError"
-        }
-      ]
-      eli5 = "Imagine you're asking someone to hand you a blue crayon, but there's no blue crayon on the table. The computer gets confused in the same way when you ask it to use something that doesn't exist yet or that you've called by the wrong name."
-    }
-    else {
-      // Generic error analysis for any other error type
-      rootCause = "An unexpected error occurred in your JavaScript code."
-      explanation = "This error could be caused by various issues in your code, such as invalid operations, runtime conflicts, or logic errors. Review the error message and stack trace for more specific details."
-      solutions = [
-        {
-          title: "Review the error context",
-          description: "Look at the line number and code surrounding the error to identify the issue.",
-          code: `// Add console logs to debug the problem
-console.log('Variable value:', someVariable);
-console.log('Object state:', JSON.stringify(someObject));
-
-// Use try/catch to handle errors gracefully
-try {
-  // Problematic code
-} catch (error) {
-  console.error('Error details:', error);
-  // Fallback behavior
-}`
-        },
-        {
-          title: "Check for common patterns",
-          description: "Look for common issues like async/await misuse, improper API calls, or event handling issues.",
-          code: `// Properly handle async operations
-async function fetchData() {
-  try {
-    const response = await api.get('/data');
-    return response.data;
-  } catch (error) {
-    console.error('API error:', error);
-    return []; // Fallback empty result
-  }
-}`
-        }
-      ]
-      relatedDocs = [
-        {
-          title: "JavaScript Debugging Guide",
-          url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Debugging_JavaScript"
-        },
-        {
-          title: "Error Handling in JavaScript",
-          url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Control_flow_and_error_handling"
-        }
-      ]
-      eli5 = "Sometimes computers get confused just like people do. Think of it like following a recipe but finding an instruction that doesn't make sense. The computer is telling you 'I don't understand what to do here' and needs your help to fix the instructions."
-    }
-
-    return {
-      rootCause,
-      explanation,
-      solutions,
-      relatedDocs,
-      packages,
-      githubIssues,
-      eli5
+    } catch (error) {
+      logger.error('Error with streaming chat completion:', error)
+      // Notify of error
+      onTokenReceived('\n\nError: Unable to get response. Please try again.', true)
     }
   }
 
-  private getSimulatedChatResponse(messages: Array<{ role: string, content: string }>): string {
-    // Get the last user message
-    const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')?.content || ''
-
-    if (lastUserMessage.toLowerCase().includes('fix') || lastUserMessage.toLowerCase().includes('solution')) {
-      return `To fix this error, you should implement one of these solutions:
-
-1. Use optional chaining:
-\`\`\`js
-const value = user?.profile?.preferences?.theme
-\`\`\`
-
-2. Add null checks:
-\`\`\`js
-if (user && user.profile && user.profile.preferences) {
-  const theme = user.profile.preferences.theme
-}
-\`\`\`
-
-3. Provide default values:
-\`\`\`js
-const theme = user?.profile?.preferences?.theme ?? 'light'
-\`\`\`
-
-The first option is the most modern and concise approach in JavaScript.`
-    } else if (lastUserMessage.toLowerCase().includes('explain') || lastUserMessage.toLowerCase().includes('why')) {
-      return `This error occurs because your code is trying to access a property on an object that doesn't exist (is undefined or null). 
-
-In JavaScript, when you try to access a property of undefined or null, it throws a TypeError. This commonly happens with nested objects when you don't check if each level exists before accessing the next level.
-
-For example, if you have code like \`user.profile.preferences.theme\` and either user, profile, or preferences is undefined/null, you'll get this error.`
-    } else {
-      return `I'll help you understand this error. The issue is that your code is trying to access a property on an object that doesn't exist (is undefined or null). This commonly happens with nested objects when you don't check if each level exists before accessing the next level.
-
-Try using optional chaining (?.) or add null checks to prevent this error from occurring again. Let me know if you need more specific help with your code!`
-    }
-  }
-
-  // Search for GitHub issues related to the error and package
   private async searchGitHubIssues(errorName: string, errorMessage: string, packages: PackageInfo[]): Promise<{
     generalIssues: GitHubIssue[],
     packageIssues: Map<string, GitHubIssue[]>
@@ -1219,7 +958,7 @@ Try using optional chaining (?.) or add null checks to prevent this error from o
     }
   }
 
-  // Updated mapGitHubIssue method with proper types
+  // Updated mapGitHubIssue method with proper typesxxr
   private mapGitHubIssue(issue: GitHubIssueApiResponse, packageName?: string): GitHubIssue {
     // Extract repo from HTML URL (format: https://github.com/owner/repo/issues/number)
     const repoMatch = issue.html_url.match(/github\.com\/([^/]+\/[^/]+)\/issues\//)
@@ -1249,55 +988,7 @@ Try using optional chaining (?.) or add null checks to prevent this error from o
   }
 
   // Generate simulated GitHub issues for demo mode
-  private getSimulatedGithubIssues(packageName: string | null, errorName: string): GitHubIssue[] {
-    // Only generate issues for known error types to make it realistic
-    if (!['TypeError', 'ReferenceError', 'SyntaxError', 'RangeError'].some(type => errorName.includes(type))) {
-      return []
-    }
 
-    // Generate repo based on package name
-    const repo = packageName
-      ? (KNOWN_REPOS[packageName]?.replace('https://github.com/', '') || `example/${packageName}`)
-      : ['facebook/react', 'vercel/next.js', 'nodejs/node'][Math.floor(Math.random() * 3)]
-
-    // Base issue templates
-    const issueTemplates = [
-      {
-        title: `Fix ${errorName} when using ${packageName || 'JavaScript'}`,
-        comments: Math.floor(Math.random() * 20) + 1,
-        state: Math.random() > 0.3 ? 'closed' : 'open' as 'closed' | 'open',
-      },
-      {
-        title: `[BUG] ${errorName} occurs in certain conditions`,
-        comments: Math.floor(Math.random() * 15) + 1,
-        state: Math.random() > 0.4 ? 'closed' : 'open' as 'closed' | 'open',
-      },
-      {
-        title: `Unexpected ${errorName} in production builds`,
-        comments: Math.floor(Math.random() * 30) + 1,
-        state: Math.random() > 0.6 ? 'closed' : 'open' as 'closed' | 'open',
-      }
-    ]
-
-    // Only return 1-2 issues for package-specific issues
-    const count = packageName ? Math.floor(Math.random() * 2) + 1 : Math.floor(Math.random() * 3) + 1
-
-    return issueTemplates.slice(0, count).map((template, index) => {
-      // Create random date within last year
-      const date = new Date()
-      date.setDate(date.getDate() - Math.floor(Math.random() * 365))
-
-      return {
-        title: template.title,
-        url: `https://github.com/${repo}/issues/${1000 + index}`,
-        repo,
-        state: template.state,
-        commentsCount: template.comments,
-        createdAt: date.toISOString(),
-        packageName: packageName || undefined
-      }
-    })
-  }
 }
 
 // Export a singleton instance
