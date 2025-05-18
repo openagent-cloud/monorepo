@@ -1,8 +1,6 @@
-# Message Renderer
+# @openagent-cloud/message-renderer
 
 <div align="center">
-  
-![Message Renderer Demo](https://via.placeholder.com/800x400.png?text=Message+Renderer+Demo)
 
 [![npm version](https://img.shields.io/npm/v/@openagent-cloud/message-renderer.svg)](https://www.npmjs.com/package/@openagent-cloud/message-renderer)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -11,7 +9,7 @@
 
 **A powerful React component for rich markdown rendering with interactive elements**
 
-[Live Demo](https://openagent-cloud-message-renderer.vercel.app/) | [Documentation](#features) | [Examples](#framework-integration) | [Troubleshooting](#troubleshooting)
+[Documentation](#features) | [Examples](#framework-integration) | [Troubleshooting](#troubleshooting)
 
 </div>
 
@@ -26,6 +24,11 @@ A powerful React component for rendering rich markdown content with support for:
 - 🎨 Dark mode support
 - 🔄 Auto-updating content
 - 🌐 URL detection and automatic embedding
+
+## 🔎 Demo
+
+![Message Renderer Demo](./public/render-example1.png)
+![Message Renderer Demo](./public/render-example2.png)
 
 ## 🚀 Installation
 

@@ -19,13 +19,17 @@ Backend NestJS API server for the electric-stack-template project.
 
 For complete documentation and stack commands, see the [root README.md](../../README.md).
 
-## Server-Specific Development
+> **Important Development Note:**
+>
+> In this project, **Docker Compose** is used to run the entire development stack. The server, client, database, and all other services are already running with hot reloading enabled when you use `make dev` from the root directory.
+>
+> **Do not** use the commands below to start the server in development mode, as this would create duplicate processes. These commands are primarily for reference, linting/formatting, or building for error checking.
 
-### Local Development
+## Server-Specific Commands
 
 ```bash
-# Start just the server in development mode
-npm run dev
+# Build the server (for error checking)
+npm run build
 
 # Lint code
 npm run lint
