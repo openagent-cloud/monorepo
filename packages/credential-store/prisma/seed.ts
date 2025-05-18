@@ -1,32 +1,57 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, AdapterType } from '@prisma/client'
 import { randomUUID } from 'crypto'
 
 const prisma = new PrismaClient()
 
-async function main() {
-  // First check if we already have a default tenant
+async function getOrCreateTenant(name: string) {
   const existingTenant = await prisma.tenant.findFirst({
-    where: { name: 'default' }
+    where: { name }
   })
 
-  let tenant
-  
   if (existingTenant) {
-    // If it exists, just return it
-    tenant = existingTenant
-  } else {
-    // Otherwise create a new one
-    const apiKey = randomUUID()
-    tenant = await prisma.tenant.create({
-      data: {
-        name: 'default',
-        apiKey,
-      }
-    })
+    return existingTenant
   }
 
-  console.log('Seeded tenant')
+  const apiKey = `tnnt_${randomUUID()}`
+  return prisma.tenant.create({
+    data: {
+      name,
+      apiKey,
+    }
+  })
+}
+
+async function getOrCreateCredential(tenantId: string, service: AdapterType, key: string) {
+  const existingCredential = await prisma.credential.findFirst({
+    where: {
+      tenantId,
+      service
+    }
+  })
+
+  if (existingCredential) {
+    return existingCredential
+  }
+
+  return prisma.credential.create({
+    data: {
+      tenantId,
+      service,
+      encryptedKey: key, // In production this should be encrypted
+      meta: {}
+    }
+  })
+}
+
+async function main() {
+  // Get or create default tenant
+  const tenant = await getOrCreateTenant('default')
+  console.log('Tenant ready:', tenant.name)
   console.log('API Key:', tenant.apiKey)
+
+  // Get or create a test OpenAI credential
+  const credential = await getOrCreateCredential(tenant.id, 'openai', 'sk-test-key')
+  console.log('Credential ready:', credential.service)
 }
 
 main()

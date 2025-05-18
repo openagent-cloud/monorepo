@@ -1,4 +1,4 @@
-name: 'openagent-cloud-cred-store'
+name: '@openagent-cloud/cred-store'
 
 services:
   # PostgreSQL database with pgvector extension
