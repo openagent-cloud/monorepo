@@ -1,1 +1,0 @@
-{"version":3,"file":"createSuperUser.d.ts","sourceRoot":"","sources":["../../../prisma/seed/createSuperUser.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,YAAY,EAAa,MAAM,aAAa,CAAC;AAItD;;;;;;;;;GASG;AACH,wBAAsB,eAAe,CACnC,MAAM,EAAE,YAAY,CAAC,OAAO,YAAY,CAAC,EACzC,KAAK,EAAE,MAAM,EACb,QAAQ,EAAE,MAAM,EAChB,IAAI,EAAE,MAAM,EACZ,QAAQ,EAAE,MAAM,gBA2BjB"}

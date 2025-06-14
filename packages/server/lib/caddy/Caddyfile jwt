@@ -1,0 +1,66 @@
+{
+  order jwtauth before basicauth
+}
+
+:5454 {
+  jwtauth {
+    # JWT configuration for user-based authentication
+    # Tokens are signed with HS256 and contain user information
+    # instead of shape-specific access patterns
+    sign_key {$AUTH_SECRET}
+    sign_alg HS256
+
+    # Use the 'sub' claim (user ID) as the user identifier
+    user_claims sub
+
+    # Extract user information from JWT claims and make available
+    # as Caddy variables for authorization and forwarding
+    meta_claims \
+      "username -> username" \
+      "role -> role" \
+      "email -> email"
+  }
+
+  # Match `GET /v1/shape` requests - the main Electric sync endpoint
+  @get_shape {
+    method GET
+    path /v1/shape
+  }
+
+  # Block access to the private user table - force use of user_public instead
+  @private_user_table {
+    expression `{http.request.uri.query.table} == "user"`
+  }
+
+  # Allow admin users to access more tables if needed
+  @admin_user {
+    expression `{http.auth.user.role} in ["admin", "superadmin", "moderator"]`
+  }
+
+  # Route the request according to the matchers
+  handle @get_shape {
+    # Block private user table access for everyone
+    handle @private_user_table {
+      respond "Forbidden: Use 'user_public' table instead of 'user'" 403 {
+        close
+      }
+    }
+
+    # For authenticated users, forward the request with user context
+    # The downstream service (Electric) will handle row-level security
+    reverse_proxy {$ELECTRIC_URL:"http://localhost:5453"} {
+      # Forward user information as headers for row-level security
+      header_up X-User-ID "{http.auth.user.id}"
+      header_up X-User-Role "{http.auth.user.role}"
+      header_up X-Username "{http.auth.user.username}"
+      header_up X-User-Email "{http.auth.user.email}"
+    }
+  }
+
+  # Handle other endpoints (if any)
+  handle {
+    respond "Not found" 404 {
+      close
+    }
+  }
+}

@@ -1,0 +1,91 @@
+{
+  admin off
+  # Enable HTTP/2 on client-facing connections
+  servers {
+    protocols h1 h2
+  }
+}
+
+# Snippet for CORS headers
+(cors) {
+  header {
+    Access-Control-Allow-Origin "*"
+    Access-Control-Allow-Methods "GET, OPTIONS"
+    Access-Control-Allow-Headers "Content-Type, Authorization"
+    Access-Control-Allow-Credentials "true"
+  }
+}
+
+# Snippet for OPTIONS handling
+(options_handler) {
+  @options {
+    method OPTIONS
+  }
+  handle @options {
+    respond 204
+  }
+}
+
+# Snippet for Electric proxy logic
+(electric_proxy) {
+  # Match `GET /v1/shape` requests - the main Electric sync endpoint
+  @get_shape {
+    method GET
+    path /v1/shape
+  }
+
+  # Block access to the private user table - force use of user_public instead
+  @private_user_table {
+    expression `{http.request.uri.query.table} == "user"`
+  }
+
+  # Route the request according to the matchers
+  handle @get_shape {
+    # Block private user table access for everyone
+    handle @private_user_table {
+      respond "Forbidden: Use 'user_public' table instead of 'user'" 403 {
+        close
+      }
+    }
+
+    # Add the API secret to the query string before forwarding
+    rewrite * {uri}?api_secret=ELyMgCWmzDp%2F4lTQMsyT0xSwf2cNEcqPR%2BDGKzNfW5c%3D&{query}
+    
+    # Forward the request to Electric using HTTP/2 for efficiency with multiple shapes
+    reverse_proxy {$ELECTRIC_URL} {
+      # Remove Electric's CORS headers to prevent duplicates
+      header_down -Access-Control-Allow-Origin
+      header_down -Access-Control-Allow-Methods
+      header_down -Access-Control-Allow-Headers
+      header_down -Access-Control-Allow-Credentials
+      
+      # Timeout settings optimized for Electric live shapes
+      timeout 25s          # Slightly longer than Electric's ~20s timeout
+      dial_timeout 3s      # Quick connection establishment
+      read_timeout 25s     # Allow for long-polling duration
+      write_timeout 10s    # Standard write timeout
+      
+      transport http {
+        versions h2c h2
+        # Optimized keep-alive for live shapes
+        keep_alive 60s
+        keep_alive_idle_conns 5
+        max_conns_per_host 10
+      }
+    }
+  }
+
+  # Handle other endpoints (if any)
+  handle {
+    respond "Not found" 404 {
+      close
+    }
+  }
+}
+
+# Production endpoint - Coolify manages HTTPS automatically
+:${CADDY_PORT} {
+  import cors
+  import options_handler
+  import electric_proxy
+} 

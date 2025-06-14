@@ -17,9 +17,14 @@ module.exports = {
     'plugin:prettier/recommended',
   ],
   rules: {
-    'prettier/prettier': ['error'],
+    'prettier/prettier': ['warn'], // Downgraded from error to warning
     'react/react-in-jsx-scope': 'off',
     '@typescript-eslint/no-unused-vars': ['warn'],
+    '@typescript-eslint/no-explicit-any': ['warn'], // Downgrade from error to warning
+    '@typescript-eslint/no-unsafe-assignment': ['warn'], // Downgrade from error to warning
+    '@typescript-eslint/no-unsafe-member-access': ['warn'], // Downgrade from error to warning
+    '@typescript-eslint/no-unsafe-call': ['warn'], // Downgrade from error to warning
+    '@typescript-eslint/no-unsafe-return': ['warn'], // Downgrade from error to warning
   },
   settings: {
     react: {

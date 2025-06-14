@@ -38,7 +38,7 @@ Featuring the "ElectricStack"⚡️, a repository for building local-first realt
 
 [![Docker](https://img.shields.io/badge/Docker-2CA5E0?style=flat&logo=docker&logoColor=white)](https://www.docker.com/) Orchestrating local hot-reload dev stack like a boss
 
-- [![PostgreSQL-:5854](https://img.shields.io/badge/PostgreSQL-:5854-316192?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/) [![Prisma](https://img.shields.io/badge/Prisma-3982CE?style=flat&logo=Prisma&logoColor=white)](https://www.prisma.io/) Type-safe database layer [![ElectricSQL-:5852](https://img.shields.io/badge/ElectricSQL-:5852-yellow?style=flat&logo=database&logoColor=white)](https://electric-sql.com/) Real-time data sync [![Caddy-:5434](https://img.shields.io/badge/Caddy-:5434-0B3C49?style=flat&logo=caddy&logoColor=white)](https://caddyserver.com/) HTTP/2 reverse proxy makes Electric go brrr
+- [![PostgreSQL-:5853](https://img.shields.io/badge/PostgreSQL-:5853-316192?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/) [![Prisma](https://img.shields.io/badge/Prisma-3982CE?style=flat&logo=Prisma&logoColor=white)](https://www.prisma.io/) Type-safe database layer [![ElectricSQL-:5852](https://img.shields.io/badge/ElectricSQL-:5852-yellow?style=flat&logo=database&logoColor=white)](https://electric-sql.com/) Real-time data sync [![Caddy-:5854](https://img.shields.io/badge/Caddy-:5854-0B3C49?style=flat&logo=caddy&logoColor=white)](https://caddyserver.com/) HTTP/2 reverse proxy makes Electric go brrr
 
 - [![NestJS-:5851](https://img.shields.io/badge/NestJS-:5851-E0234E?style=flat&logo=nestjs&logoColor=white)](https://nestjs.com/) [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Swagger](https://img.shields.io/badge/Swagger-85EA2D?style=flat&logo=swagger&logoColor=black)](https://swagger.io/) Blazing fast TypeScript backend
 
@@ -50,20 +50,16 @@ Featuring the "ElectricStack"⚡️, a repository for building local-first realt
 
 ## Project Structure
 
-```
-packages/
-├── client/       # React frontend
-├── server/       # NestJS backend API
-└── shared/       # Shared package with Prisma schema, migrations, common types
-```
-
-For detailed information about each package, check out their README files:
-
-- [Client Documentation](packages/client/README.md)
-- [Server Documentation](packages/server/README.md)
-- [Shared Documentation](packages/shared/README.md)
-
----
+| Package/Service              | Description                                                 | URL                                                          | Documentation                                            |
+| ---------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------- |
+| `packages/client/`           | React frontend application                                  | http://localhost:5850                                        | [View README](packages/client/README.md)                 |
+| `packages/server/`           | NestJS backend API with Swagger documentation               | http://localhost:5851<br>http://localhost:5851/api (Swagger) | [View README](packages/server/README.md)                 |
+| `packages/shared/`           | Shared package with Prisma schema, migrations, common types | -                                                            | [View README](packages/shared/README.md)                 |
+| `packages/message-renderer/` | React component for rich markdown rendering                 | -                                                            | [View README](packages/message-renderer/README.md)       |
+| `packages/discord-bot/`      | Discord bot with logging system                             | -                                                            | [View README](packages/discord-bot/src/logger/README.md) |
+| PostgreSQL                   | Database server                                             | localhost:5853                                               | -                                                        |
+| ElectricSQL                  | Real-time data sync service                                 | localhost:5852                                               | -                                                        |
+| Caddy                        | HTTP/2 reverse proxy                                        | localhost:5854                                               | -                                                        |
 
 > **Important Development Notes:**
 >
@@ -76,6 +72,37 @@ For detailed information about each package, check out their README files:
 
 ## **Getting Started:**
 
+### **Option 1: Interactive Setup Wizard (Recommended)**
+
+Run our fancy interactive setup wizard that will guide you through the entire setup process:
+
+```sh
+make setup
+```
+
+The wizard will:
+
+1. Generate secure environment variables for all packages
+2. Install all dependencies
+3. Start the Docker compose stack with all services
+4. Run database migrations and generate Prisma client
+5. Seed the database with sample data
+6. Display URLs for accessing the application
+
+### **Option 2: Quick Start**
+
+If you prefer a non-interactive quick start:
+
+```sh
+make dev-build-all
+```
+
+This will run all the setup steps automatically with default options.
+
+### **Option 3: Manual Setup**
+
+If you prefer to run each step separately:
+
 - **Install local dependencies in all packages:**
   ```sh
   npm install
@@ -84,10 +111,11 @@ For detailed information about each package, check out their README files:
   ```sh
   make dev
   ```
-- **After running `make dev`, all services will be available:**
-  - Client: http://localhost:5850
-  - Server API: http://localhost:5851
-  - Swagger UI: http://localhost:5851/
+- **Seed the database:**
+  ```sh
+  cd packages/shared
+  npm run db:seed
+  ```
 
 ---
 

@@ -1,1 +1,0 @@
-* Aim for 250 LOC max per file - refactor to smaller pieces if exceeded, organize by feature/module, keep relative files near by

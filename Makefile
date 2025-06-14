@@ -1,6 +1,6 @@
 # Makefile for Local-First Dev Stack (Postgres, ElectricSQL, Prisma, PGlite)
 
-.PHONY: up down logs restart install migrate generate studio seed dev reset pglite-test env gen-env print-env-targets check-env-targets prune prune-all
+.PHONY: up down logs restart install migrate generate studio seed dev reset pglite-test env gen-env print-env-targets check-env-targets prune prune-all dev-build-all setup
 
 # Install dependencies
 install:
@@ -44,3 +44,19 @@ full-reset: down-v up-build
 
 # Reset everything
 reset: full-reset migrate generate seed
+
+# Complete setup for first-time users (install, build, migrate, seed)
+dev-build-all: install dev-build
+	echo "Waiting for services to start..."
+	sleep 10
+	npx turbo run db:generate --filter=electric-stack-template-shared
+	npx turbo run db:migrate --filter=electric-stack-template-shared
+	npx turbo run db:seed --filter=electric-stack-template-shared
+	echo "✅ Setup complete! The application is now running."
+	echo "📱 Client: http://localhost:5173"
+	echo "🖥️  Server: http://localhost:5851"
+	echo "📚 API Docs: http://localhost:5851/api"
+
+# Interactive setup wizard (recommended for new users)
+setup:
+	npm run setup

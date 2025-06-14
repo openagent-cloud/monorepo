@@ -13,31 +13,30 @@
     "db:generate": "turbo run db:generate --filter=electric-stack-template-shared",
     "db:push": "turbo run db:push --filter=electric-stack-template-shared",
     "db:migrate": "turbo run db:migrate --filter=electric-stack-template-shared",
-    "db:seed": "turbo run db:seed --filter=electric-stack-template-shared"
+    "db:seed": "turbo run db:seed --filter=electric-stack-template-shared",
+    "cli": "npm run build --filter=electric-stack-template-cli && node packages/cli/dist/index.js",
+    "cli:run": "node packages/cli/dist/index.js",
+    "setup": "npm run cli -- install",
+    "gen:string": "npm run cli:run -- generate string",
+    "gen:password": "npm run cli:run -- generate password",
+    "gen:jwt": "npm run cli:run -- generate jwt",
+    "gen:api-key": "npm run cli:run -- generate api-key",
+    "gen:admin-key": "npm run cli:run -- generate admin-key",
+    "gen:uuid": "npm run cli:run -- generate uuid"
   },
   "keywords": [
-    "electric-sql",
-    "nestjs",
-    "react",
-    "prisma",
-    "pglite",
     "monorepo"
   ],
   "author": "tyzoo",
   "license": "MIT",
   "devDependencies": {
-    "@types/uuid": "10.0.0",
     "turbo": "^2.0.0"
   },
   "workspaces": [
     "packages/client",
     "packages/server",
-    "packages/shared"
+    "packages/shared",
+    "packages/cli"
   ],
-  "dependencies": {
-    "@tanstack/react-query": "5.76.1",
-    "@tanstack/react-query-devtools": "5.76.1",
-    "remark-math": "6.0.0",
-    "uuid": "11.1.0"
-  }
+  "dependencies": {}
 }

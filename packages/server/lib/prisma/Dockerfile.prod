@@ -1,0 +1,7 @@
+FROM postgres:17-alpine
+
+# Copy our custom pg_hba.conf with proper ownership
+COPY --chown=postgres:postgres pg_hba.conf /var/lib/postgresql/pg_hba.conf
+
+# Set proper permissions (readable by postgres user only)
+RUN chmod 600 /var/lib/postgresql/pg_hba.conf 

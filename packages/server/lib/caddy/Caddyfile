@@ -1,0 +1,83 @@
+{
+  admin off
+  # Enable HTTP/2 on client-facing connections
+  servers {
+    protocols h1 h2
+  }
+  # Auto HTTPS for development - generates self-signed certs automatically
+  auto_https disable_redirects
+}
+
+# Snippet for CORS headers
+(cors) {
+  header {
+    Access-Control-Allow-Origin "*"
+    Access-Control-Allow-Methods "GET, OPTIONS"
+    Access-Control-Allow-Headers "Content-Type, Authorization"
+    Access-Control-Allow-Credentials "true"
+  }
+}
+
+# Snippet for OPTIONS handling
+(options_handler) {
+  @options {
+    method OPTIONS
+  }
+  handle @options {
+    respond 204
+  }
+}
+
+# Snippet for Electric proxy logic
+(electric_proxy) {
+  # Match `GET /v1/shape` requests - the main Electric sync endpoint
+  @get_shape {
+    method GET
+    path /v1/shape
+  }
+
+  # Block access to the private user table - force use of user_public instead
+  @private_user_table {
+    expression `{http.request.uri.query.table} == "user"`
+  }
+
+  # Route the request according to the matchers
+  handle @get_shape {
+    # Block private user table access for everyone
+    handle @private_user_table {
+      respond "Forbidden: Use 'user_public' table instead of 'user'" 403 {
+        close
+      }
+    }
+
+    # Add the API secret to the query string before forwarding
+    rewrite * {uri}?api_secret=ELyMgCWmzDp%2F4lTQMsyT0xSwf2cNEcqPR%2BDGKzNfW5c%3D&{query}
+    
+    # Forward the request to Electric using HTTP/2 for efficiency with multiple shapes
+    reverse_proxy {$ELECTRIC_URL} {
+      # Remove Electric's CORS headers to prevent duplicates
+      header_down -Access-Control-Allow-Origin
+      header_down -Access-Control-Allow-Methods
+      header_down -Access-Control-Allow-Headers
+      header_down -Access-Control-Allow-Credentials
+    }
+  }
+
+  # Handle other endpoints (if any)
+  handle {
+    respond "Not found" 404 {
+      close
+    }
+  }
+}
+
+# HTTPS endpoint for HTTP/2 performance - Caddy auto-generates self-signed cert
+https://localhost:5454 {
+  # Force self-signed certificate for development
+  tls internal
+  
+  import cors
+  import options_handler
+  import electric_proxy
+}
+

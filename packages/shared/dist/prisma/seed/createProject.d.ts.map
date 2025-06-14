@@ -1,1 +1,0 @@
-{"version":3,"file":"createProject.d.ts","sourceRoot":"","sources":["../../../prisma/seed/createProject.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,YAAY,EAAE,MAAM,aAAa,CAAC;AAG3C;;;;;;;;GAQG;AACH,wBAAsB,aAAa,CACjC,MAAM,EAAE,YAAY,CAAC,OAAO,YAAY,CAAC,EACzC,IAAI,EAAE,MAAM,YAAoB,EAChC,WAAW,EAAE,MAAM,YAA6C,EAChE,MAAM,EAAE,MAAM,gBAgCf"}

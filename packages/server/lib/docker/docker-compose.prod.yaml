@@ -1,0 +1,124 @@
+services:
+  postgres:
+    build:
+      context: ../prisma
+      dockerfile: Dockerfile.prod
+    container_name: ecs_db_prod
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST_AUTH_METHOD: md5
+      POSTGRES_INITDB_ARGS: '--auth-host=md5'
+    ports:
+      - '${POSTGRES_PORT}:5432'
+    volumes:
+      - ecs_postgres_data_prod:/var/lib/postgresql/data
+      # Mount custom configuration files with proper ownership
+      - ../prisma/postgres.conf:/var/lib/postgresql/postgres.conf:ro
+      - ../prisma/pg_hba.conf:/var/lib/postgresql/pg_hba.conf:ro
+    command: |
+      postgres 
+      -c config_file=/var/lib/postgresql/postgres.conf 
+      -c hba_file=/var/lib/postgresql/pg_hba.conf
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - ecs_network_prod
+
+  electric:
+    image: electricsql/electric:canary
+    container_name: ecs_electric_prod
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${INTERNAL_DATABASE_URL}
+      ELECTRIC_INSECURE: ${ELECTRIC_INSECURE}
+      ELECTRIC_SECRET: ${ELECTRIC_SECRET}
+    ports:
+      - ${ELECTRIC_PORT}:${ELECTRIC_PORT}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ecs_network_prod
+
+  caddy:
+    build:
+      context: ../caddy
+      dockerfile: Dockerfile
+      args:
+        CADDYFILE: Caddyfile.prod
+    container_name: ecs_caddy_prod
+    ports:
+      - '${CADDY_PORT}:${CADDY_PORT}'
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      ELECTRIC_URL: ${ELECTRIC_URL}
+      ELECTRIC_SECRET: ${ELECTRIC_SECRET}
+    restart: unless-stopped
+    depends_on:
+      electric:
+        condition: service_healthy
+    networks:
+      - ecs_network_prod
+
+  migrations:
+    build:
+      context: ../prisma
+      dockerfile: Dockerfile
+    container_name: ecs_migrations_prod
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${INTERNAL_DATABASE_URL}
+      NODE_ENV: production
+
+    networks:
+      - ecs_network_prod
+
+  server:
+    build:
+      context: ../..
+      dockerfile: ./lib/docker/Dockerfile
+      target: production
+    ports:
+      - '${NEST_PORT}:${NEST_PORT}'
+    container_name: ecs_server_prod
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${INTERNAL_DATABASE_URL}
+      NEST_PORT: ${NEST_PORT}
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    volumes:
+      - ../../../../:/app
+      - server_node_modules:/app/node_modules
+      - server_dist:/app/packages/server/dist
+    # Production command - no hot reload, run built application
+    command: ['node', 'dist/src/main.js']
+    restart: unless-stopped
+    networks:
+      - ecs_network_prod
+
+volumes:
+  ecs_postgres_data_prod:
+
+networks:
+  ecs_network_prod:
+    name: ecs_network_prod

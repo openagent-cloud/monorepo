@@ -1,0 +1,31 @@
+FROM node:20-slim
+
+# Install system dependencies
+RUN apt-get update && \
+  apt-get install -y openssl procps inotify-tools && \
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/*
+
+# Install global dev tools
+RUN npm install -g \
+  prisma \
+  typescript \
+  ts-node \
+  ts-node-dev \
+  @nestjs/cli \
+  @swc/cli \
+  @swc/core
+
+# Set working directory
+WORKDIR /app
+
+# Copy only package files first to install deps
+COPY package*.json ./
+RUN npm install
+
+# Then copy the rest of the source
+COPY . .
+
+# Let docker-compose define the entrypoint
+# You can still define a fallback CMD
+CMD ["node"]

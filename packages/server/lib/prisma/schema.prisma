@@ -1,0 +1,438 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum access_type {
+  private
+  public
+  paywalled
+  restricted
+  subscriber
+  tokengated
+}
+
+enum adapter_type {
+  openai
+  anthropic
+  cohere
+}
+
+enum module {
+  content
+  ai_agent
+  ai_proxy
+  flows
+  contact
+  mailing_list
+  users
+}
+
+enum post_visibility {
+  public
+  private
+  unlisted
+}
+
+enum token_type {
+  access
+  email_verification
+  password_reset
+  refresh
+  siwe
+}
+
+enum user_role {
+  user
+  elevated
+  moderator
+  admin
+  superadmin
+}
+
+model agent {
+  id           String      @id @default(uuid())
+  config       Json        @default("{}")
+  created_at   DateTime    @default(now()) @db.Timestamptz()
+  description  String?
+  handoffFrom  agent[]     @relation("AgentHandoffs")
+  handoffs     agent[]     @relation("AgentHandoffs")
+  is_active    Boolean     @default(true)
+  model        String      @default("gpt-4")
+  name         String      @unique
+  instructions String
+  runs         agent_run[]
+  tenant       tenant      @relation(fields: [tenant_id], references: [id])
+  tenant_id    Int
+  tools        String[]
+  updated_at   DateTime    @updatedAt @db.Timestamptz()
+
+  @@index([tenant_id])
+  @@index([is_active])
+  @@map("agents")
+}
+
+model agent_run {
+  id            String   @id @default(uuid())
+  agent         agent    @relation(fields: [agent_id], references: [id])
+  agent_id      String
+  created_at    DateTime @default(now()) @db.Timestamptz()
+  input         String
+  metadata      Json     @default("{}")
+  output        String?
+  parent_run_id String?  @map("parent_run_id")
+  status        String   @default("pending")
+  tenant        tenant   @relation(fields: [tenant_id], references: [id])
+  tenant_id     Int
+  updated_at    DateTime @updatedAt @db.Timestamptz()
+
+  @@index([agent_id])
+  @@index([status])
+  @@index([created_at])
+  @@index([tenant_id])
+  @@map("agent_runs")
+}
+
+model contact_message {
+  category   String? // can be used for role requests, general questions, etc.
+  created_at DateTime @default(now()) @db.Timestamptz
+  email      String
+  id         Int      @id @default(autoincrement())
+  message    String
+  metadata   Json?
+  name       String
+  status     String   @default("new") // new, read, replied, archived
+  tenant     tenant   @relation(fields: [tenant_id], references: [id])
+  tenant_id  Int
+  updated_at DateTime @updatedAt @db.Timestamptz
+  uuid       String   @unique @default(uuid())
+
+  @@index([email])
+  @@index([status])
+  @@index([created_at])
+  @@index([category])
+  @@index([tenant_id])
+}
+
+model content {
+  access_type     access_type              @default(public)
+  author_id       Int
+  children        content[]                @relation("comment_parent")
+  content_access  content_access[]
+  content_type    content_type             @relation(fields: [content_type_id], references: [id], onDelete: Cascade)
+  content_type_id Int
+  created_at      DateTime                 @default(now()) @db.Timestamptz
+  id              Int                      @id @default(autoincrement())
+  metadata        Json
+  parent          content?                 @relation("comment_parent", fields: [parent_id], references: [id])
+  parent_id       Int?
+  reaction_counts content_reaction_counts?
+  tenant          tenant                   @relation(fields: [tenant_id], references: [id])
+  tenant_id       Int
+  title           String?
+  updated_at      DateTime                 @updatedAt @db.Timestamptz
+  uuid            String                   @unique @default(uuid())
+
+  @@index([author_id])
+  @@index([content_type_id])
+  @@index([parent_id])
+  @@index([created_at])
+  @@index([tenant_id])
+}
+
+model content_access {
+  content    content     @relation(fields: [content_id], references: [id], onDelete: Cascade)
+  content_id Int
+  granted_at DateTime    @default(now()) @db.Timestamptz
+  id         Int         @id @default(autoincrement())
+  tenant     tenant      @relation(fields: [tenant_id], references: [id])
+  tenant_id  Int
+  type       access_type
+  updated_at DateTime    @updatedAt @db.Timestamptz
+  user_id    Int
+  uuid       String      @unique @default(uuid())
+
+  @@index([content_id])
+  @@index([user_id])
+  @@index([type])
+  @@index([tenant_id])
+}
+
+model content_reaction_counts {
+  content            content  @relation(fields: [content_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  content_id         Int      @unique
+  comment_count      Int      @default(0)
+  conversation_count Int      @default(0) // Total of all replies + comments
+  downvote_count     Int      @default(0)
+  emoji_breakdown    Json? // Store counts by emoji, e.g., {"👍": 5, "❤️": 3}
+  emoji_count        Int      @default(0)
+  id                 Int      @id @default(autoincrement())
+  tenant             tenant   @relation(fields: [tenant_id], references: [id])
+  tenant_id          Int
+  total_count        Int      @default(0)
+  upvote_count       Int      @default(0)
+  updated_at         DateTime @updatedAt @db.Timestamptz()
+  reply_count        Int      @default(0)
+
+  @@index([tenant_id])
+  @@index([content_id])
+  @@index([total_count]) // For finding trending content
+  @@index([conversation_count]) // For finding active conversations
+}
+
+model content_type {
+  access_level access_type @default(public)
+  content      content[]
+  created_at   DateTime    @default(now()) @db.Timestamptz
+  id           Int         @id @default(autoincrement())
+  name         String      @unique
+  schema       Json
+  tenant       tenant      @relation(fields: [tenant_id], references: [id])
+  tenant_id    Int
+  updated_at   DateTime    @updatedAt @db.Timestamptz
+  uuid         String      @unique @default(uuid())
+
+  @@index([name])
+  @@index([tenant_id])
+}
+
+model credential {
+  id            String       @id @default(uuid())
+  created_at    DateTime     @default(now()) @db.Timestamptz()
+  encrypted_key String
+  meta          Json
+  service       adapter_type
+  tenant        tenant       @relation(fields: [tenant_id], references: [id])
+  tenant_id     Int
+
+  @@index([tenant_id])
+  @@index([service])
+  @@map("credentials")
+}
+
+model flow_chart {
+  id         String      @id @default(uuid())
+  created_at DateTime    @default(now()) @db.Timestamptz()
+  edges      flow_edge[] @relation("ChartToEdges")
+  name       String
+  nodes      flow_node[] @relation("ChartToNodes")
+  tenant     tenant      @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  tenant_id  Int
+  updated_at DateTime    @updatedAt @db.Timestamptz()
+
+  @@index([tenant_id])
+  @@index([name])
+  @@map("flow_charts")
+}
+
+model flow_edge {
+  id             String     @id @default(uuid())
+  animated       Boolean?   @default(false)
+  chart          flow_chart @relation("ChartToEdges", fields: [chart_id], references: [id], onDelete: Cascade)
+  chart_id       String
+  created_at     DateTime   @default(now()) @db.Timestamptz()
+  data           Json? // additional metadata (for runtime use)
+  label          String?
+  marker_end     Json? // e.g. { type: "arrowclosed", color: "blue" }
+  selected       Boolean    @default(false)
+  source_handle  String?
+  source_node_id String
+  style          Json? // e.g. { stroke: "#f00", strokeWidth: 2 }
+  target_handle  String?
+  target_node_id String
+  tenant         tenant     @relation(fields: [tenant_id], references: [id])
+  tenant_id      Int
+  type           String? // optional, e.g., 'default', 'step', 'custom'
+  updated_at     DateTime   @updatedAt @db.Timestamptz()
+
+  @@index([chart_id])
+  @@index([source_node_id])
+  @@index([target_node_id])
+  @@index([tenant_id])
+  @@map("flow_edges")
+}
+
+model flow_node {
+  id         String          @id @default(uuid())
+  chart      flow_chart      @relation("ChartToNodes", fields: [chart_id], references: [id], onDelete: Cascade)
+  chart_id   String
+  created_at DateTime        @default(now()) @db.Timestamptz()
+  data       Json?
+  height     Int?
+  label      String?
+  type       flow_node_type? @relation(fields: [type_name], references: [name])
+  position   Json            @default("{\"x\": 0, \"y\": 0}")
+  tenant     tenant          @relation(fields: [tenant_id], references: [id])
+  tenant_id  Int
+  type_name  String?
+  updated_at DateTime        @updatedAt @db.Timestamptz()
+  width      Int?
+
+  @@index([chart_id])
+  @@index([type_name])
+  @@index([tenant_id])
+  @@map("flow_nodes")
+}
+
+model flow_node_type {
+  id          String      @id @default(uuid())
+  description String?
+  label       String? // Display label for the node type
+  name        String      @unique // e.g. 'agent', 'tool', 'webhook'
+  nodes       flow_node[] // Relation to flow_node
+  tenant      tenant      @relation(fields: [tenant_id], references: [id])
+  tenant_id   Int
+  created_at  DateTime    @default(now()) @db.Timestamptz()
+  updated_at  DateTime    @updatedAt @db.Timestamptz()
+
+  @@index([name])
+  @@index([tenant_id])
+  @@map("flow_node_types")
+}
+
+model mailing_list {
+  created_at DateTime @default(now()) @db.Timestamptz
+  email      String   @unique
+  id         Int      @id @default(autoincrement())
+  metadata   Json?
+  source     String   @default("website")
+  subscribed Boolean  @default(true)
+  tenant     tenant   @relation(fields: [tenant_id], references: [id])
+  tenant_id  Int
+  updated_at DateTime @updatedAt @db.Timestamptz
+  uuid       String   @unique @default(uuid())
+
+  @@index([tenant_id])
+  @@index([email])
+  @@index([source])
+  @@index([subscribed])
+}
+
+model proxy_request {
+  id                String       @id @default(uuid())
+  completion_tokens Int?
+  cost_usd          Float?
+  created_at        DateTime     @default(now()) @db.Timestamptz()
+  endpoint          String
+  metadata          Json?        @default("{}")
+  model             String?
+  prompt_tokens     Int?
+  response_ms       Int
+  service           adapter_type
+  status            Int
+  tenant            tenant       @relation(fields: [tenant_id], references: [id])
+  tenant_id         Int
+  total_tokens      Int?
+  updated_at        DateTime     @updatedAt @db.Timestamptz()
+
+  @@index([created_at])
+  @@index([service])
+  @@index([tenant_id])
+  @@map("proxy_requests")
+}
+
+model tenant {
+  id                      Int                       @id @default(autoincrement())
+  agent_runs              agent_run[]
+  agents                  agent[]
+  api_key                 String                    @unique
+  contact_messages        contact_message[]
+  content_access          content_access[]
+  content_reaction_counts content_reaction_counts[]
+  content_types           content_type[]
+  contents                content[]
+  credentials             credential[]
+  created_at              DateTime                  @default(now()) @db.Timestamptz()
+  flow_charts             flow_chart[]
+  flow_edges              flow_edge[]
+  flow_node_types         flow_node_type[]
+  flow_nodes              flow_node[]
+  mailing_lists           mailing_list[]
+  modules                 module[]                  @default([])
+  name                    String
+  requests                proxy_request[]
+  tokens                  token[]
+  updated_at              DateTime                  @updatedAt @db.Timestamptz()
+  users                   user[]
+  users_public            user_public[]
+  uuid                    String                    @default(uuid())
+
+  @@index([api_key])
+  @@index([name])
+  @@map("tenants")
+}
+
+model token {
+  id         Int        @id @default(autoincrement())
+  created_at DateTime   @default(now()) @db.Timestamptz()
+  expires_at DateTime   @db.Timestamptz()
+  metadata   Json       @default("{}")
+  tenant     tenant     @relation(fields: [tenant_id], references: [id])
+  tenant_id  Int
+  token      String     @unique
+  token_hash String
+  type       token_type
+  updated_at DateTime   @updatedAt @db.Timestamptz()
+  user       user       @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "tokens_user_id_fkey")
+  user_id    Int
+  uuid       String?    @unique @default(uuid())
+
+  @@index([tenant_id])
+}
+
+model user {
+  avatar_url            String?
+  bio                   String?
+  created_at            DateTime  @default(now()) @db.Timestamptz
+  email                 String    @unique
+  id                    Int       @id @default(autoincrement())
+  is_verified           Boolean   @default(false)
+  last_login            DateTime? @db.Timestamptz
+  modules               module[]  @default([])
+  name                  String?
+  password              String
+  public_key            String?   @unique
+  private_key           String?
+  refresh_token         String?   @unique
+  refresh_token_expires DateTime? @db.Timestamptz
+  reset_token           String?   @unique
+  reset_token_expires   DateTime? @db.Timestamptz
+  role                  user_role @default(user)
+  tenant                tenant    @relation(fields: [tenant_id], references: [id])
+  tenant_id             Int
+  tokens                token[]
+  updated_at            DateTime  @updatedAt @db.Timestamptz
+  username              String    @unique
+  uuid                  String    @unique @default(uuid())
+
+  @@index([email])
+  @@index([username])
+  @@index([public_key])
+  @@index([tenant_id])
+  @@map("users")
+}
+model user_public {
+  avatar_url String?
+  bio        String?
+  created_at DateTime  @default(now()) @db.Timestamptz
+  id         Int       @id @default(autoincrement())
+  modules    module[]  @default([])
+  name       String?
+  public_key String?   @unique
+  role       user_role @default(user)
+  tenant     tenant    @relation(fields: [tenant_id], references: [id])
+  tenant_id  Int
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  username   String    @unique
+  uuid       String    @unique @default(uuid())
+
+  @@index([username])
+  @@index([public_key])
+  @@index([tenant_id])
+  @@map("users_public")
+}

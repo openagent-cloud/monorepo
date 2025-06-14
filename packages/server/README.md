@@ -1,88 +1,179 @@
-# electric-stack-template/server ⚡️
+# 🔐 @openagent-cloud/credential-store
 
-## Server Template Repository
+A secure credential store for your AI components with usage tracking and proxy capabilities. This service allows you to securely store API keys for various AI providers, track usage, and proxy requests to these services.
 
-### For sake of saving time, for the greater good 🚀 [@tyzoo](https://github.com/tyzoo)
+## ✨ Features
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/tyzoo/electric-stack-template/issues)
-[![Stars](https://img.shields.io/github/stars/tyzoo/electric-stack-template.svg)](https://github.com/tyzoo/electric-stack-template/stargazers)
-[![Forks](https://img.shields.io/github/forks/tyzoo/electric-stack-template.svg)](https://github.com/tyzoo/electric-stack-template/network/members)
-[![Issues](https://img.shields.io/github/issues/tyzoo/electric-stack-template.svg)](https://github.com/tyzoo/electric-stack-template/issues)
-[![Open Source Love](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://github.com/tyzoo/electric-stack-template/)
+- **Multi-tenant Support** 🏢: Support multiple tenants with isolated credentials
+- **Authentication** 🔐: Secure authentication and authorization with roles
+- **Content Types** 📝: Define content types for your web app
+- **Content** 📝: Publish and serve content
+- **2D Flow Backend** 📝: Serve 2D flow data
+- **3D Scene Backend** 📝: Serve 3D scene data (coming soon)
+- **Contact/Mailinglist** 📬: Manage website contact form and mailinglist subscriptions
+- **Secure Credential Storage** 🔒: Store API keys for OpenAI, Anthropic, Cohere, and more
+- **AI Request Proxying** 🔄: Proxy requests to AI services without exposing API keys in your client applications, with support for streaming responses
+- **Usage Tracking** 📊: Track all requests to AI services for analytics and billing purposes
+- **Swagger Documentation** 📝: Interactive API documentation
 
-Welcome to ElectricStack ⚡️, the official template repository for building local-first realtime applications
+## 🌐 Overview
 
-Backend NestJS API server for the electric-stack-template project.
+The credential store is part of the Electric Stack Template ecosystem, providing a centralized service for managing AI service credentials. By using this service, you can:
 
-## Usage
+1. **Enhance Security**: Store API keys securely using AES-256-GCM encryption
+2. **Simplify Management**: Manage all AI service credentials in one place
+3. **Track Usage**: Monitor API usage across all your applications
+4. **Proxy Requests**: Route all AI service requests through a single endpoint
 
-For complete documentation and stack commands, see the [root README.md](../../README.md).
+## 🚀 Quick Start
 
-> **Important Development Note:**
->
-> In this project, **Docker Compose** is used to run the entire development stack. The server, client, database, and all other services are already running with hot reloading enabled when you use `make dev` from the root directory.
->
-> **Do not** use the commands below to start the server in development mode, as this would create duplicate processes. These commands are primarily for reference, linting/formatting, or building for error checking.
-
-## Server-Specific Commands
+### 🛠️ Using Make Commands
 
 ```bash
-# Build the server (for error checking)
-npm run build
+# Install dependencies
+make install
 
-# Lint code
-npm run lint
+# Start the database
+make db-up
 
-# Format code
-npm run format
+# Generate Prisma client
+make generate
+
+# Run migrations
+make migrate
+
+# Seed the database
+make seed
+
+# Start the development server
+make dev
 ```
 
-### Tech Stack
+### ⚙️ Manual Setup
 
-- **NestJS** - Server framework
-- **Prisma** - Database ORM
-- **Zod** - Schema validation
-- **ElectricSQL** - Real-time sync
+```bash
+# Install dependencies
+npm install
 
-### Directory Structure
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your database credentials and encryption key
 
+# Generate Prisma client
+npm run prisma:generate
+
+# Run migrations
+npm run prisma:migrate
+
+# Seed the database
+npm run prisma:seed
+
+# Start the development server
+npm run start:dev
 ```
-/src               # Source code
-  /config          # Configuration files
-  /controllers     # API controllers
-  /services        # Business logic
-  /dto             # Data transfer objects
-  /entities        # Prisma entities/models
-  /middleware      # Custom middleware
-  main.ts          # Entry point
+
+## 🔌 API Usage
+
+### 💾 Storing Credentials
+
+```bash
+curl -X POST http://localhost:5860/credentials \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_TENANT_API_KEY" \
+  -d '{
+    "service": "openai",
+    "key": "sk-your-openai-api-key",
+    "meta": {"organization": "org-123"}
+  }'
 ```
 
-## Conventions
+### 🔄 Proxying Requests
 
-### API Structure
+#### Standard Request
 
-- Use NestJS controllers for defining API endpoints
-- Use services for business logic
-- Keep controllers thin, with minimal logic
-- Use DTOs for input/output validation
+```bash
+curl -X POST http://localhost:5860/proxy/openai \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_TENANT_API_KEY" \
+  -d '{
+    "payload": {
+      "model": "gpt-4",
+      "messages": [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Hello!"}
+      ]
+    }
+  }'
+```
 
-### Error Handling
+#### Streaming Request ✨
 
-- Use NestJS exception filters for consistent error responses
-- Throw specific exceptions rather than returning error objects
-- Use Zod for validation with clear error messages
+For real-time token streaming (like the typing effect):
 
-### Database Access
+```bash
+curl -X POST http://localhost:5860/proxy/openai/stream \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_TENANT_API_KEY" \
+  -N \
+  -d '{
+    "payload": {
+      "model": "gpt-4",
+      "messages": [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Tell me a story"}
+      ]
+    }
+  }'
+```
 
-- Use the shared Prisma client from `shared` package
-- Use transactions for related operations
-- Keep database queries in service layer
-- Follow repository pattern for complex database operations
+The streaming endpoint returns Server-Sent Events (SSE) that can be consumed in real-time by your frontend application.
 
-### Authentication & Authorization
+## 🐳 Docker Setup
 
-- Use Guards for protecting routes
-- Implement role-based access control
-- Keep authentication logic in dedicated services
-- Use dependency injection for security services
+The credential store includes Docker configuration for easy deployment:
+
+```bash
+# Start with Docker Compose
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop containers
+docker-compose down
+```
+
+## 🛡️ Security
+
+The credential store uses AES-256-GCM encryption to securely store API keys. Each key is encrypted with:
+
+- A random initialization vector (IV)
+- Authentication tag for integrity verification
+- The master encryption key (set in the CRED_ENCRYPT_KEY environment variable)
+
+### 🔑 Generating a Secure Encryption Key
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+## 🔧 Environment Variables
+
+| Variable         | Description                        | Example                                                          |
+| ---------------- | ---------------------------------- | ---------------------------------------------------------------- |
+| DATABASE_URL     | PostgreSQL connection string       | postgres://user:pass@localhost:5861/creds                        |
+| CRED_ENCRYPT_KEY | 32-byte hex-encoded encryption key | 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef |
+| SERVER_PORT      | Port to run the server on          | 5860                                                             |
+| ADMIN_API_KEY    | Admin key for tenant management    | admin_0123456789abcdef                                           |
+
+## ⚡ Integration with Electric Stack
+
+This credential store is designed to work seamlessly with the Electric Stack Template, providing a secure way to manage AI credentials across your applications. It can be used as:
+
+1. A standalone service for managing AI credentials
+2. An integrated component in the Electric Stack ecosystem
+3. A proxy service for all AI requests in your applications
+
+## 📄 License
+
+MIT
