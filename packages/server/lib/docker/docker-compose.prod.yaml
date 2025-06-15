@@ -17,7 +17,13 @@ services:
     volumes:
       - ecs_postgres_data_prod:/var/lib/postgresql/data
     command: |
-      postgres
+      postgres 
+      -c listen_addresses='*' 
+      -c max_connections=100
+      -c wal_level=logical
+      -c max_replication_slots=10
+      -c max_wal_senders=10
+      -c hba_file=/var/lib/postgresql/pg_hba.conf
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}']
       interval: 5s
