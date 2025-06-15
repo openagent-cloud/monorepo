@@ -36,11 +36,9 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_URL: ${INTERNAL_DATABASE_URL}
       ELECTRIC_INSECURE: ${ELECTRIC_INSECURE}
       ELECTRIC_SECRET: ${ELECTRIC_SECRET}
-      # Override INTERNAL_DATABASE_URL which may be pointing to wrong address
-      INTERNAL_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     ports:
       - ${ELECTRIC_PORT}:${ELECTRIC_PORT}
     depends_on:
