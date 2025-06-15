@@ -1,8 +1,7 @@
 services:
   postgres:
-    build:
-      context: ./lib/prisma
-      dockerfile: Dockerfile.prod
+    image: pgvector/pgvector:pg16
+    # Removed custom build since we're using the official pgvector image
     container_name: ecs_db_prod
     env_file:
       - .env
@@ -16,14 +15,21 @@ services:
       - '${POSTGRES_PORT}:5432'
     volumes:
       - ecs_postgres_data_prod:/var/lib/postgresql/data
-    command: |
-      postgres 
-      -c listen_addresses='*' 
-      -c max_connections=100
-      -c wal_level=logical
-      -c max_replication_slots=10
-      -c max_wal_senders=10
-      -c hba_file=/var/lib/postgresql/pg_hba.conf
+    command:
+      - -c
+      - listen_addresses=*
+      - -c
+      - max_connections=100
+      - -c
+      - wal_level=logical
+      - -c
+      - max_replication_slots=10
+      - -c
+      - max_wal_senders=10
+      - -c
+      - log_connections=on
+      - -c
+      - hba_file=/var/lib/postgresql/pg_hba.conf
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}']
       interval: 5s
@@ -39,9 +45,11 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: ${INTERNAL_DATABASE_URL}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       ELECTRIC_INSECURE: ${ELECTRIC_INSECURE}
       ELECTRIC_SECRET: ${ELECTRIC_SECRET}
+      # Override INTERNAL_DATABASE_URL which may be pointing to wrong address
+      INTERNAL_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     ports:
       - ${ELECTRIC_PORT}:${ELECTRIC_PORT}
     depends_on:
@@ -81,8 +89,10 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: ${INTERNAL_DATABASE_URL}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       NODE_ENV: production
+      # Override INTERNAL_DATABASE_URL which may be pointing to wrong address
+      INTERNAL_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
 
     networks:
       - ecs_network_prod
@@ -98,10 +108,12 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: ${INTERNAL_DATABASE_URL}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       NEST_PORT: ${NEST_PORT}
       NODE_ENV: production
       JWT_SECRET: ${JWT_SECRET}
+      # Override INTERNAL_DATABASE_URL which may be pointing to wrong address
+      INTERNAL_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     depends_on:
       postgres:
         condition: service_healthy
