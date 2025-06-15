@@ -43,6 +43,10 @@ RUN npm install --production
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
 
+# Copy the Prisma client files
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/lib/prisma/schema.prisma ./lib/prisma/schema.prisma
+
 # Expose the application port
 EXPOSE ${NEST_PORT}
 
