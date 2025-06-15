@@ -16,13 +16,8 @@ services:
       - '${POSTGRES_PORT}:5432'
     volumes:
       - ecs_postgres_data_prod:/var/lib/postgresql/data
-      # Mount custom configuration files with proper ownership
-      - ./lib/prisma/postgres.conf:/var/lib/postgresql/postgres.conf:ro
-      - ./lib/prisma/pg_hba.conf:/var/lib/postgresql/pg_hba.conf:ro
     command: |
-      postgres 
-      -c config_file=/var/lib/postgresql/postgres.conf 
-      -c hba_file=/var/lib/postgresql/pg_hba.conf
+      postgres
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}']
       interval: 5s
@@ -122,3 +117,4 @@ volumes:
 networks:
   ecs_network_prod:
     name: ecs_network_prod
+    external: true
