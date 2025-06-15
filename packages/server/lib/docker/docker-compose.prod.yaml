@@ -1,7 +1,7 @@
 services:
   postgres:
     build:
-      context: ../prisma
+      context: ./lib/prisma
       dockerfile: Dockerfile.prod
     container_name: ecs_db_prod
     env_file:
@@ -17,8 +17,8 @@ services:
     volumes:
       - ecs_postgres_data_prod:/var/lib/postgresql/data
       # Mount custom configuration files with proper ownership
-      - ../prisma/postgres.conf:/var/lib/postgresql/postgres.conf:ro
-      - ../prisma/pg_hba.conf:/var/lib/postgresql/pg_hba.conf:ro
+      - ./lib/prisma/postgres.conf:/var/lib/postgresql/postgres.conf:ro
+      - ./lib/prisma/pg_hba.conf:/var/lib/postgresql/pg_hba.conf:ro
     command: |
       postgres 
       -c config_file=/var/lib/postgresql/postgres.conf 
@@ -52,7 +52,7 @@ services:
 
   caddy:
     build:
-      context: ../caddy
+      context: ./lib/caddy
       dockerfile: Dockerfile
       args:
         CADDYFILE: Caddyfile.prod
@@ -72,7 +72,7 @@ services:
 
   migrations:
     build:
-      context: ../prisma
+      context: ./lib/prisma
       dockerfile: Dockerfile
     container_name: ecs_migrations_prod
     restart: 'no'
@@ -88,7 +88,7 @@ services:
 
   server:
     build:
-      context: ../..
+      context: .
       dockerfile: ./lib/docker/Dockerfile
       target: production
     ports:
@@ -107,9 +107,9 @@ services:
       migrations:
         condition: service_completed_successfully
     volumes:
-      - ../../..:/app
+      - .:/app
       - server_node_modules:/app/node_modules
-      - server_dist:/app/packages/server/dist
+      - server_dist:/app/dist
     # Production command - no hot reload, run built application
     command: ['node', 'dist/src/main.js']
     restart: unless-stopped
