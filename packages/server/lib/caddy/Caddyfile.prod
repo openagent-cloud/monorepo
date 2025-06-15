@@ -60,10 +60,13 @@
       header_down -Access-Control-Allow-Credentials
       
       # Timeout settings optimized for Electric live shapes
-      timeout 25s          # Slightly longer than Electric's ~20s timeout
-      dial_timeout 3s      # Quick connection establishment
-      read_timeout 25s     # Allow for long-polling duration
-      write_timeout 10s    # Standard write timeout
+      timeouts {
+        dial 3s
+        read 25s
+        write 10s
+        response 25s
+        idle 60s
+      }
       
       transport http {
         versions h2c h2
