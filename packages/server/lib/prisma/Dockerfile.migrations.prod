@@ -1,0 +1,22 @@
+FROM node:20-slim
+
+WORKDIR /app
+
+# Install OpenSSL and other dependencies required by Prisma
+RUN apt-get update && apt-get install -y openssl
+
+# Copy package.json 
+COPY package*.json ./
+
+# In production, the context is set to ./lib/prisma in the compose file
+# So we just need to copy everything from the current directory
+COPY . ./prisma/
+
+# Install dependencies
+RUN npm install prisma
+
+# Set environment variable for Prisma
+ENV PRISMA_SCHEMA_PATH=/app/prisma/schema.prisma
+
+# Command to run migrations
+CMD ["npx", "prisma", "migrate", "deploy"]

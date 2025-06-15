@@ -73,7 +73,7 @@ services:
   migrations:
     build:
       context: ./lib/prisma
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.migrations.prod
     container_name: ecs_migrations_prod
     restart: 'no'
     depends_on:

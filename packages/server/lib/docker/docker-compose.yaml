@@ -56,7 +56,7 @@ services:
   migrations:
     build:
       context: ../..
-      dockerfile: ./lib/prisma/Dockerfile
+      dockerfile: ./lib/prisma/Dockerfile.migrations.dev
       args:
         PRISMA_DIR: ./lib/prisma
     container_name: cred-migrations
