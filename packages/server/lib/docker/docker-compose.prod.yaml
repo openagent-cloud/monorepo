@@ -89,7 +89,7 @@ services:
   server:
     build:
       context: .
-      dockerfile: ./lib/docker/Dockerfile
+      dockerfile: Dockerfile
       target: production
     ports:
       - '${NEST_PORT}:${NEST_PORT}'
